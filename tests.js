@@ -279,4 +279,40 @@ function testPlan3() {
   runPlan(move, free);
 }
 
-testPlan3();
+// testPlan3();
+
+
+function testPlan4() {
+  const queue = [
+    {
+      "from_start": 192512,
+      "from_set": "/dev/mapper/ssd_crypt",
+      "to_start": 64512,
+      "to_set": "/dev/mapper/ssd_crypt",
+      "size": 25600,
+      "name": "servers #2[51200-76799]"
+    },
+    {
+      "from_start": 64512,
+      "from_set": "/dev/mapper/ssd_crypt",
+      "to_start": 90112,
+      "to_set": "/dev/mapper/ssd_crypt",
+      "size": 128000,
+      "name": "media #1[0-127999]",
+      "moved": true,
+      "partial": true
+    }
+  ];
+
+  const free = [
+    {
+      "from_start": 474112,
+      "from_set": "/dev/mapper/ssd_crypt",
+      "size": 2495
+    }
+  ];
+
+  runPlan(queue, free);
+}
+
+testPlan4();

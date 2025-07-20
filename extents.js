@@ -200,6 +200,12 @@ function planMoves(extentsToMove, freeSets, usedSets = new ExtentSetsWithNames()
     if (!overlap)
       return { move: null, newExtent: null }; // No free space to move
 
+    // Make first move to be direct
+    if (overlap.isStart != overlap.isEnd && !extent.partial) {
+      extent.partial = true; // Mark as partial if not already
+      return { move: null, newExtent: extent }; // Cannot move if the extent is not partial
+    }
+
     newExtent = { ...extent };
 
     if (overlap.isStart) {
@@ -289,6 +295,88 @@ function planMoves(extentsToMove, freeSets, usedSets = new ExtentSetsWithNames()
     };
   }
 
+  function subdivideExtentsByFrom(queue) {
+    const splitOffsets = {}; // map of names to start positions
+
+    for (const ext of queue) {
+      const { from_set, from_start } = ext;
+      splitOffsets[from_set] = splitOffsets[from_set] || [];
+      splitOffsets[from_set].push(from_start);
+    }
+
+    // remove duplicates and sort
+    for (const set in splitOffsets) {
+      splitOffsets[set] = [...new Set(splitOffsets[set])].sort((a, b) => a - b);
+    }
+
+    for (let i = 0; i < queue.length; i++) {
+      const ext = queue[i];
+      const { to_set, to_start, size } = ext;
+      let splits = 0;
+
+      for (const split of (splitOffsets[to_set] || [])) {
+        if (split <= to_start)
+          continue;
+        if (to_start + size < split)
+          break; // no more splits to consider
+
+        const beforeSplit = { ...ext, size: split - to_start, name: `${ext.name} s${splits}` };
+        ext.from_start += beforeSplit.size;
+        ext.to_start += beforeSplit.size;
+        ext.size -= beforeSplit.size;
+
+        queue.splice(i, 0, beforeSplit);
+        i++;
+        splits++;
+      }
+
+      if (splits > 0) {
+        ext.name = `${ext.name} s${splits}`;
+      }
+    }
+  }
+
+  function subdivideExtentsByTo(queue) {
+    const splitOffsets = {}; // map of names to start positions
+
+    for (const ext of queue) {
+      const { to_set, to_start } = ext;
+      splitOffsets[to_set] = splitOffsets[to_set] || [];
+      splitOffsets[to_set].push(to_start);
+    }
+
+    // remove duplicates and sort
+    for (const set in splitOffsets) {
+      splitOffsets[set] = [...new Set(splitOffsets[set])].sort((a, b) => a - b);
+    }
+
+    for (let i = 0; i < queue.length; i++) {
+      const ext = queue[i];
+      const { from_set, from_start, size } = ext;
+      let splits = 0;
+
+      for (const split of (splitOffsets[from_set] || [])) {
+        if (split <= from_start)
+          continue;
+        if (from_start + size < split)
+          break; // no more splits to consider
+
+        const beforeSplit = { ...ext, size: split - from_start, name: `${ext.name} s${splits}` };
+        ext.from_start += beforeSplit.size;
+        ext.to_start += beforeSplit.size;
+        ext.size -= beforeSplit.size;
+
+        queue.splice(i, 0, beforeSplit);
+        i++;
+        splits++;
+      }
+
+      if (splits > 0) {
+        ext.name = `${ext.name} s${splits}`;
+      }
+    }
+  }
+
   function logMoveCommand(when, move, freeSets, usedSets) {
     console.log(`\n[${when}] Moved ${move.type} '${move.name}' -> ${move.from_set}[${move.from_start}, ${move.from_start+move.size}) -> ${move.to_set}[${move.to_start}, ${move.to_start+move.size})`);
     freeSets.dump(`[${when}] Free`);
@@ -303,6 +391,9 @@ function planMoves(extentsToMove, freeSets, usedSets = new ExtentSetsWithNames()
   for (const ext of extentsToMove) {
     usedSets.add(ext.from_set, ext.from_start, ext.size);
   }
+
+  // subdivideExtentsByFrom(queue); // Subdivide extents to allow for more granular moves
+  // subdivideExtentsByTo(queue); // Subdivide extents to allow for more granular moves
 
   while (queue.length > 0) {
     let retry = false;
@@ -367,4 +458,10 @@ function planMoves(extentsToMove, freeSets, usedSets = new ExtentSetsWithNames()
   const failedMoves = [...indirectMoves, ...missedMoves];
 
   return { moves, failedMoves };
+}
+
+module.exports = {
+  ExtentSet,
+  ExtentSetsWithNames,
+  planMoves
 }

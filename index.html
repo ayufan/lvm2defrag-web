@@ -405,7 +405,7 @@ function generateCommands() {
   }
 
   const commands = [];
-  let extentsMoved = 0;
+  let extentsMoved = { total: 0, indirect: 0, full: 0, partial: 0 };
 
   for (let i = 0; i < moves.length; i++) {
     const move = moves[i];
@@ -415,7 +415,14 @@ function generateCommands() {
       ``
     );
 
-    extentsMoved += move.size;
+    extentsMoved.total += move.size;
+    if (move.type === 'indirect') {
+      extentsMoved.indirect += move.size;
+    } else if (move.type === 'full') {
+      extentsMoved.full += move.size;
+    } else if (move.type === 'partial') {
+      extentsMoved.partial += move.size;
+    }
   }
 
   for (let i = 0; i < failedMoves.length; i++) {
@@ -428,7 +435,10 @@ function generateCommands() {
   }
 
   commands.unshift(
-    `# Total extents moved: ${extentsMoved}`,
+    `# Total extents moved: ${extentsMoved.total}`,
+    `# Full extents moved: ${extentsMoved.full}`,
+    `# Partial extents moved: ${extentsMoved.partial}`,
+    `# Indirect extents moved: ${extentsMoved.indirect}`,
     `# Total moves planned: ${moves.length}`,
     `# Failed moves: ${failedMoves.length}`,
     ``
