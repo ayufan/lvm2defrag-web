@@ -189,6 +189,19 @@ class ExtentSetsWithNames {
 }
 
 function planMoves(extentsToMove, freeSets, usedSets = new ExtentSetsWithNames()) {
+  function overlapScore(extent, freeSets) {
+    let { from_set, size, to_start, to_set } = extent;
+
+    if (from_set == to_set && !freeSets.set(to_set).localAllowed)
+      return 0;
+
+    const overlap = freeSets.findOverlap(to_set, to_start, size);
+    if (!overlap)
+      return 0;
+
+    return overlap.size;
+  }
+
   function directMove(extent, freeSets, usedSets, isStart = true, isEnd = true) {
     let { from_set, from_start, size, to_start, to_set } = extent;
 
@@ -335,6 +348,8 @@ function planMoves(extentsToMove, freeSets, usedSets = new ExtentSetsWithNames()
   while (queue.length > 0) {
     let retry = false;
 
+    queue.sort((a, b) => overlapScore(b, freeSets) - overlapScore(a, freeSets)); // Sort indirect queue by start position
+
     // Process many direct queue
     while (queue.length > 0) {
       const extent = queue.pop();
@@ -352,7 +367,7 @@ function planMoves(extentsToMove, freeSets, usedSets = new ExtentSetsWithNames()
       noDirectMoves = 0;
     }
 
-    indirectMoves.sort((a, b) => b.size - a.size); // Sort indirect queue by start position
+    indirectMoves.sort((a, b) => a.size - b.size); // Sort indirect queue by start position
 
     // Process indirect queue
     while (!retry && indirectMoves.length > 0) {
@@ -371,7 +386,7 @@ function planMoves(extentsToMove, freeSets, usedSets = new ExtentSetsWithNames()
       break; // break to re-evaluate the queue
     }
 
-    if (retry && noDirectMoves <= 1) {
+    if (retry && noDirectMoves <= 2) {
       queue.push(...indirectMoves); // retry with the remaining indirectMoves
       queue.push(...missedMoves); // retry with the remaining missedMoves
       indirectMoves.length = 0; // clear indirectMoves for the next round
