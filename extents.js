@@ -193,35 +193,39 @@ function planMoves(extentsToMove, freeSets, usedSets = new ExtentSetsWithNames()
     let { from_set, from_start, size, to_start, to_set } = extent;
 
     if (from_set == to_set && !freeSets.set(to_set).localAllowed) {
-      return { move: null, newExtent: null }; // Cannot move locally if local moves are not allowed
+      return { move: null, newExtents: null }; // Cannot move locally if local moves are not allowed
     }
 
     const overlap = freeSets.findOverlap(to_set, to_start, size);
     if (!overlap)
-      return { move: null, newExtent: null }; // No free space to move
+      return { move: null, newExtents: null }; // No free space to move
 
-    // Make first move to be direct
-    if (overlap.isStart != overlap.isEnd && !extent.partial) {
-      extent.partial = true; // Mark as partial if not already
-      return { move: null, newExtent: extent }; // Cannot move if the extent is not partial
-    }
+    // // Make first move to be direct
+    // if ((!overlap.isStart || !overlap.isEnd) && !extent.partial) {
+    //   extent.partial = true; // Mark as partial if not already
+    //   return { move: null, newExtents: [extent] }; // Cannot move if the extent is not partial
+    // }
 
-    newExtent = { ...extent };
+    const newExtents = [];
 
     if (overlap.isStart) {
-      newExtent.from_start += overlap.size; // Adjust the start position of the extent
-      newExtent.to_start += overlap.size; // Adjust the target start position
-      newExtent.size -= overlap.size; // Reduce the size of the extent
-    } else if (overlap.isEnd) {
-      newExtent.size -= overlap.size; // Reduce the size of the extent
+      const extentAtEnd = { ...extent };
+      extentAtEnd.from_start += overlap.size; // Adjust the start position of the extent
+      extentAtEnd.to_start += overlap.size; // Adjust the target start position
+      extentAtEnd.size -= overlap.size; // Reduce the size of the extent
+      if (extentAtEnd.size > 0) {
+        newExtents.push(extentAtEnd);
+      }
+    }
+    
+    if (overlap.isEnd) {
+      const extentAtStart = { ...extent };
+      extentAtStart.size -= overlap.size; // Reduce the size of the extent
       from_start += overlap.size; // Adjust the start position of the extent
       to_start += overlap.size; // Adjust the target start position
-    } else {
-      return { move: null, newExtent: null }; // Cannot move if the overlap is not at the start or end
-    }
-
-    if (newExtent.size <= 0) {
-      newExtent = null; // No size left to move
+      if (extentAtStart.size > 0) {
+        newExtents.push(extentAtStart);
+      }
     }
 
     // Re-add the extent to the free set
@@ -243,7 +247,7 @@ function planMoves(extentsToMove, freeSets, usedSets = new ExtentSetsWithNames()
       extent
     };
 
-    return { move, newExtent };
+    return { move, newExtents };
   }
 
   function indirectMove(extent, freeSets, usedSets) {
@@ -401,14 +405,14 @@ function planMoves(extentsToMove, freeSets, usedSets = new ExtentSetsWithNames()
     // Process many direct queue
     while (queue.length > 0) {
       const extent = queue.pop();
-      const { move, newExtent } = directMove(extent, freeSets, usedSets);
+      const { move, newExtents } = directMove(extent, freeSets, usedSets);
       if (!move) {
         indirectMoves.push(extent);
         continue;
       }
 
-      if (newExtent) {
-        indirectMoves.push(newExtent);
+      if (newExtents) {
+        indirectMoves.push(...newExtents);
       }
 
       logMoveCommand("Direct", move, freeSets, usedSets);
