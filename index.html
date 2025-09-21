@@ -69,6 +69,7 @@
 
 <textarea id="jsonInput" placeholder="Paste JSON here..."></textarea>
 <button onclick="parseJSON()">Parse</button>
+<button onclick="parseUserJSON()" id="restoreButton" disabled>Restore</button>
 <div id="errorMessage" class="error"></div>
 
 <div class="help">
@@ -183,6 +184,7 @@ function createOrUpdatePV(pvName) {
         if (pv_size > freeSpace) {
           if (evt.from == evt.to) {
             updatePVs();
+            saveUserJSON();
             return;
           }
           document.getElementById('errorMessage').innerText = '❌ Not enough free space';
@@ -209,6 +211,7 @@ function createOrUpdatePV(pvName) {
           parseInt(item.dataset.moved_pv_start),
           pv_size - left_size);
         updatePVs();
+        saveUserJSON();
       }
     });
   }
@@ -278,12 +281,15 @@ function createLVFreeExtent(pvName, pv_start, pv_size) {
   insertLVtoPV(pvName, d);
 }
 
-function createLVExtent(pvName, extent) {
+function createLVExtent(pvName, extent, movedPvName = null, movedPvStart = null) {
   const start_pe = parseInt(extent.seg_start_pe);
   const size_pe = parseInt(extent.seg_size_pe);
   const pv_start = parseInt(extent.pvseg_start);
   const pv_size = parseInt(extent.pvseg_size);
   const index = parseInt(extent.index);
+
+  movedPvName = movedPvName || pvName;
+  movedPvStart = movedPvStart !== null ? movedPvStart : pv_start;
 
   const list = createOrUpdatePV(pvName);
   const d = document.createElement('div');
@@ -299,10 +305,10 @@ function createLVExtent(pvName, extent) {
   d.dataset.pv_name = extent.pv_name;
   d.dataset.pv_start = pv_start;
   d.dataset.pv_size = pv_size;
-  d.dataset.moved_pv_name = extent.pv_name;
-  d.dataset.moved_pv_start = pv_start;
+  d.dataset.moved_pv_name = movedPvName;
+  d.dataset.moved_pv_start = movedPvStart;
   d.dataset.index = index;
-  insertLVtoPV(pvName, d);
+  insertLVtoPV(movedPvName, d);
 }
 
 function parseJSON() {
@@ -343,10 +349,43 @@ function parseJSON() {
     updatePVs();
     loadedReport = dumpPVs();
 
+    if (localStorage.getItem('lvm_json') !== jsonInput) {
+      localStorage.removeItem('lvm_user_json');
+    }
+
     localStorage.setItem('lvm_json', jsonInput);
+    document.getElementById('restoreButton').disabled = localStorage.getItem('lvm_user_json') ? false : true;
   } catch (e) {
     document.getElementById('errorMessage').innerText = `Invalid JSON: ${e.message}`;
   }
+}
+
+function parseUserJSON() {
+  try {
+    const jsonInput = localStorage.getItem('lvm_user_json');
+    if (!jsonInput) {
+      return;
+    }
+
+    const entries = JSON.parse(jsonInput);
+
+    resetPVs();
+    entries.forEach(entry => {
+      if (entry.extent) {
+        createLVExtent(entry.pv_name, entry.extent, entry.moved_pv_name, entry.moved_pv_start);
+      } else {
+        createLVFreeExtent(entry.moved_pv_name, entry.moved_pv_start, entry.pv_size);
+      }
+    });
+    updatePVs();
+  } catch (e) {
+    document.getElementById('errorMessage').innerText = `Invalid JSON: ${e.message}`;
+  }
+}
+
+function saveUserJSON() {
+  const currentOrder = dumpPVs();
+  localStorage.setItem('lvm_user_json', JSON.stringify(currentOrder));
 }
 
 function dumpPVs() {
@@ -355,12 +394,30 @@ function dumpPVs() {
   pvOrder.forEach(pvName => {
     const list = document.getElementById(`pv-${safeId(pvName)}`);
     for (const el of list.children) {
-      output.push({
+      const item = {
         lv_name: el.dataset.lv_name || null,
         pv_name: el.dataset.pv_name,
         pv_start: parseInt(el.dataset.pv_start),
-        pv_size: parseInt(el.dataset.pv_size)
-      });
+        pv_size: parseInt(el.dataset.pv_size),
+        moved_pv_name: el.dataset.moved_pv_name,
+        moved_pv_start: parseInt(el.dataset.moved_pv_start)
+      };
+
+      // Add additional data for LV extents to enable proper restoration
+      if (el.dataset.lv_name) {
+        item.extent = {
+          segtype: el.dataset.segtype,
+          seg_start_pe: el.dataset.lv_start,
+          seg_size_pe: el.dataset.lv_size,
+          pvseg_start: el.dataset.pv_start,
+          pvseg_size: el.dataset.pv_size,
+          index: el.dataset.index,
+          lv_name: el.dataset.lv_name,
+          pv_name: el.dataset.pv_name
+        };
+      }
+
+      output.push(item);
     }
   });
 
@@ -498,6 +555,7 @@ function confirmSplit() {
 
   closeSplitModal();
   updatePVs();
+  saveUserJSON();
 }
 
 window.onload = () => {
@@ -505,6 +563,7 @@ window.onload = () => {
   if (saved) {
     document.getElementById('jsonInput').value = saved;
     parseJSON();
+    parseUserJSON();
   }
 };
 </script>
