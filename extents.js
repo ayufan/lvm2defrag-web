@@ -189,7 +189,7 @@ class ExtentSetsWithNames {
 }
 
 function planMoves(extentsToMove, freeSets, usedSets = new ExtentSetsWithNames()) {
-  function directMove(extent, freeSets, usedSets) {
+  function directMove(extent, freeSets, usedSets, isStart = true, isEnd = true) {
     let { from_set, from_start, size, to_start, to_set } = extent;
 
     if (from_set == to_set && !freeSets.set(to_set).localAllowed) {
@@ -200,31 +200,32 @@ function planMoves(extentsToMove, freeSets, usedSets = new ExtentSetsWithNames()
     if (!overlap)
       return { move: null, newExtents: null }; // No free space to move
 
-    // // Make first move to be direct
-    // if ((!overlap.isStart || !overlap.isEnd) && !extent.partial) {
-    //   extent.partial = true; // Mark as partial if not already
-    //   return { move: null, newExtents: [extent] }; // Cannot move if the extent is not partial
-    // }
-
     const newExtents = [];
 
-    if (overlap.isStart) {
-      const extentAtEnd = { ...extent };
-      extentAtEnd.from_start += overlap.size; // Adjust the start position of the extent
-      extentAtEnd.to_start += overlap.size; // Adjust the target start position
-      extentAtEnd.size -= overlap.size; // Reduce the size of the extent
-      if (extentAtEnd.size > 0) {
-        newExtents.push(extentAtEnd);
+    if (!overlap.isStart) {
+      if (!isStart) {
+        return { move: null, newExtents: null }; // Cannot split at start if not allowed
       }
-    }
-    
-    if (overlap.isEnd) {
       const extentAtStart = { ...extent };
-      extentAtStart.size -= overlap.size; // Reduce the size of the extent
-      from_start += overlap.size; // Adjust the start position of the extent
-      to_start += overlap.size; // Adjust the target start position
+      extentAtStart.size = overlap.start - extent.to_start;
+      from_start += extentAtStart.size;
+      to_start += extentAtStart.size;
       if (extentAtStart.size > 0) {
         newExtents.push(extentAtStart);
+      }
+    }
+
+    if (!overlap.isEnd) {
+      if (!isEnd) {
+        return { move: null, newExtents: null }; // Cannot split at end if not allowed
+      }
+      const extentAtEnd = { ...extent };
+      const overlapMovedSize = overlap.start + overlap.size - extent.to_start;
+      extentAtEnd.from_start += overlapMovedSize;
+      extentAtEnd.to_start += overlapMovedSize;
+      extentAtEnd.size -= overlapMovedSize; // Reduce the size of the extent
+      if (extentAtEnd.size > 0) {
+        newExtents.push(extentAtEnd);
       }
     }
 
@@ -251,10 +252,10 @@ function planMoves(extentsToMove, freeSets, usedSets = new ExtentSetsWithNames()
   }
 
   function indirectMove(extent, freeSets, usedSets) {
-    const { from_set, from_start, size, to_start, to_set, moved } = extent;
+    let { from_set, from_start, size, to_start, to_set, moved } = extent;
 
     if (moved) {
-      return null; // Already moved, skip further processing
+      return { move: null, newExtents: null }; // Already moved, skip further processing
     }
 
     const selectedSets = [];
@@ -266,12 +267,23 @@ function planMoves(extentsToMove, freeSets, usedSets = new ExtentSetsWithNames()
     }
 
     if (selectedSets.includes(to_set) && !usedSets.isUsed(to_set, to_start, size)) {
-      return null;
+      return { move: null, newExtents: null };
     }
 
-    const found = freeSets.find(to_set, size, selectedSets);
+    const found = freeSets.find(to_set, size, selectedSets) || freeSets.find(to_set, 1024, selectedSets);
     if (!found) {
-      return null;
+      return { move: null, newExtents: null };
+    }
+
+    const newExtents = [];
+
+    if (found.size < size) {
+      size = found.size;
+      const extentAtEnd = { ...extent };
+      extentAtEnd.from_start += size;
+      extentAtEnd.to_start += size;
+      extentAtEnd.size -= size;
+      newExtents.push(extentAtEnd);
     }
 
     // Update the extent to point to the new location
@@ -287,7 +299,7 @@ function planMoves(extentsToMove, freeSets, usedSets = new ExtentSetsWithNames()
     usedSets.add(extent.from_set, extent.from_start, size);
     freeSets.remove(extent.from_set, extent.from_start, size);
 
-    return {
+    const move = {
       from_set,
       from_start,
       to_set: extent.from_set,
@@ -297,88 +309,10 @@ function planMoves(extentsToMove, freeSets, usedSets = new ExtentSetsWithNames()
       type: 'indirect',
       extent: extent
     };
-  }
 
-  function subdivideExtentsByFrom(queue) {
-    const splitOffsets = {}; // map of names to start positions
+    newExtents.push(extent);
 
-    for (const ext of queue) {
-      const { from_set, from_start } = ext;
-      splitOffsets[from_set] = splitOffsets[from_set] || [];
-      splitOffsets[from_set].push(from_start);
-    }
-
-    // remove duplicates and sort
-    for (const set in splitOffsets) {
-      splitOffsets[set] = [...new Set(splitOffsets[set])].sort((a, b) => a - b);
-    }
-
-    for (let i = 0; i < queue.length; i++) {
-      const ext = queue[i];
-      const { to_set, to_start, size } = ext;
-      let splits = 0;
-
-      for (const split of (splitOffsets[to_set] || [])) {
-        if (split <= to_start)
-          continue;
-        if (to_start + size < split)
-          break; // no more splits to consider
-
-        const beforeSplit = { ...ext, size: split - to_start, name: `${ext.name} s${splits}` };
-        ext.from_start += beforeSplit.size;
-        ext.to_start += beforeSplit.size;
-        ext.size -= beforeSplit.size;
-
-        queue.splice(i, 0, beforeSplit);
-        i++;
-        splits++;
-      }
-
-      if (splits > 0) {
-        ext.name = `${ext.name} s${splits}`;
-      }
-    }
-  }
-
-  function subdivideExtentsByTo(queue) {
-    const splitOffsets = {}; // map of names to start positions
-
-    for (const ext of queue) {
-      const { to_set, to_start } = ext;
-      splitOffsets[to_set] = splitOffsets[to_set] || [];
-      splitOffsets[to_set].push(to_start);
-    }
-
-    // remove duplicates and sort
-    for (const set in splitOffsets) {
-      splitOffsets[set] = [...new Set(splitOffsets[set])].sort((a, b) => a - b);
-    }
-
-    for (let i = 0; i < queue.length; i++) {
-      const ext = queue[i];
-      const { from_set, from_start, size } = ext;
-      let splits = 0;
-
-      for (const split of (splitOffsets[from_set] || [])) {
-        if (split <= from_start)
-          continue;
-        if (from_start + size < split)
-          break; // no more splits to consider
-
-        const beforeSplit = { ...ext, size: split - from_start, name: `${ext.name} s${splits}` };
-        ext.from_start += beforeSplit.size;
-        ext.to_start += beforeSplit.size;
-        ext.size -= beforeSplit.size;
-
-        queue.splice(i, 0, beforeSplit);
-        i++;
-        splits++;
-      }
-
-      if (splits > 0) {
-        ext.name = `${ext.name} s${splits}`;
-      }
-    }
+    return { move, newExtents };
   }
 
   function logMoveCommand(when, move, freeSets, usedSets) {
@@ -396,8 +330,7 @@ function planMoves(extentsToMove, freeSets, usedSets = new ExtentSetsWithNames()
     usedSets.add(ext.from_set, ext.from_start, ext.size);
   }
 
-  // subdivideExtentsByFrom(queue); // Subdivide extents to allow for more granular moves
-  // subdivideExtentsByTo(queue); // Subdivide extents to allow for more granular moves
+  let noDirectMoves = 0;
 
   while (queue.length > 0) {
     let retry = false;
@@ -410,38 +343,40 @@ function planMoves(extentsToMove, freeSets, usedSets = new ExtentSetsWithNames()
         indirectMoves.push(extent);
         continue;
       }
-
       if (newExtents) {
         indirectMoves.push(...newExtents);
       }
-
       logMoveCommand("Direct", move, freeSets, usedSets);
       moves.push(move);
-      retry = true; // we made a move, so we might have new opportunities
+      retry = true;
+      noDirectMoves = 0;
     }
 
-    indirectMoves.sort((a, b) => a.size - b.size); // Sort indirect queue by start position
+    indirectMoves.sort((a, b) => b.size - a.size); // Sort indirect queue by start position
 
     // Process indirect queue
     while (!retry && indirectMoves.length > 0) {
       const extent = indirectMoves.pop();
-      const move = indirectMove(extent, freeSets, usedSets);
+      const { move, newExtents } = indirectMove(extent, freeSets, usedSets);
       if (!move) {
         missedMoves.push(extent);
         continue;
       }
+      if (newExtents) {
+        indirectMoves.push(...newExtents);
+      }
       logMoveCommand("Indirect", move, freeSets, usedSets);
       moves.push(move);
-      indirectMoves.push(extent); // re-add the moved extent to partialMoves
-      retry = true; // we made a move, so we might have new opportunities
+      retry = true;
       break; // break to re-evaluate the queue
     }
 
-    if (retry) {
+    if (retry && noDirectMoves <= 1) {
       queue.push(...indirectMoves); // retry with the remaining indirectMoves
       queue.push(...missedMoves); // retry with the remaining missedMoves
       indirectMoves.length = 0; // clear indirectMoves for the next round
       missedMoves.length = 0; // clear missedMoves for the next round
+      noDirectMoves++;
     }
   }
 
