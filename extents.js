@@ -281,7 +281,8 @@ function planMoves(extentsToMove, freeSets, usedSets = new ExtentSetsWithNames()
     const selectedSets = [];
     for (const setName in freeSets.extentSets) {
       const set = freeSets.extentSets[setName];
-      if (set.indirectAllowed && setName !== from_set || set.localAllowed && setName === from_set) {
+      if (!set.indirectAllowed) continue;
+      if (setName !== from_set || set.localAllowed && setName === from_set) {
         selectedSets.push(setName);
       }
     }

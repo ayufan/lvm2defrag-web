@@ -153,8 +153,9 @@ function createOrUpdatePV(pvName) {
     div.innerHTML = `
       <h3>${pvName}</h3>
       <label><input type="checkbox" class="use-indirect" data-pv="${pvName}" checked /> Use for indirect moves</label><br/>
-      <label><input type="checkbox" class="use-local" data-pv="${pvName}" checked /> Use for local moves</label><br/>
-      <label><input type="checkbox" class="use-split" data-pv="${pvName}" /> Allow to split extents</label>
+      <label><input type="checkbox" class="use-local" data-pv="${pvName}" /> Allow for local moves</label><br/>
+      <label><input type="checkbox" class="use-split" data-pv="${pvName}" /> Allow to split extents</label><br/>
+      <button onclick="sortPVExtents('${pvName}')" style="font-size: 12px; padding: 2px 6px;">Sort Extents</button>
       <hr/>
     `;
 
@@ -519,6 +520,68 @@ function generateCommands() {
 
 function copyGeneratedCommands() {
   navigator.clipboard.writeText(document.getElementById('commandsOutput').innerText);
+}
+
+function sortPVExtents(pvName) {
+  const list = document.getElementById(`pv-${safeId(pvName)}`);
+  if (!list) return;
+
+  const extents = Array.from(list.children);
+
+  // Separate LV extents by LV name while preserving order within each LV
+  const lvGroups = {};
+  const freeExtents = [];
+
+  extents.forEach(extent => {
+    if (extent.dataset.lv_name) {
+      const lvName = extent.dataset.lv_name;
+      if (!lvGroups[lvName]) {
+        lvGroups[lvName] = [];
+      }
+      lvGroups[lvName].push(extent);
+    } else {
+      freeExtents.push(extent);
+    }
+  });
+
+  // Sort extents within each LV by their logical position (seg_start_pe)
+  for (const lvName in lvGroups) {
+    lvGroups[lvName].sort((a, b) => {
+      const aStart = parseInt(a.dataset.lv_start);
+      const bStart = parseInt(b.dataset.lv_start);
+      return aStart - bStart;
+    });
+  }
+
+  // Get unique LV names in original order
+  const lvOrder = [];
+  extents.forEach(extent => {
+    const lvName = extent.dataset.lv_name;
+    if (lvName && !lvOrder.includes(lvName)) {
+      lvOrder.push(lvName);
+    }
+  });
+
+  // Clear the list and rebuild it
+  list.innerHTML = '';
+
+  // Add LV extents in original LV order, but sorted within each LV
+  lvOrder.forEach(lvName => {
+    if (lvGroups[lvName]) {
+      lvGroups[lvName].forEach(extent => {
+        list.appendChild(extent);
+      });
+    }
+  });
+
+  // Add free extents at the end
+  freeExtents.forEach(extent => {
+    list.appendChild(extent);
+  });
+
+  // Update PV positions and save state
+  updatePVs();
+  saveUserJSON();
 }
 
 // Extent splitting logic
