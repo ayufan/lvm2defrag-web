@@ -4,6 +4,7 @@ class ExtentSet {
     this.set = set;
     this.indirectAllowed = true; // Allow indirect moves by default
     this.localAllowed = true; // Allow local moves by default
+    this.splitAllowed = true; // Allow splitting extents by default
   }
 
   // Add and immediately merge
@@ -214,6 +215,12 @@ function planMoves(extentsToMove, freeSets, usedSets = new ExtentSetsWithNames()
       return { move: null, newExtents: null }; // No free space to move
 
     const newExtents = [];
+
+    if (!overlap.isStart && !overlap.isEnd) {
+      if (!isStart || !isEnd || !freeSets.set(to_set).splitAllowed) {
+        return { move: null, newExtents: null }; // Cannot split if not allowed
+      }
+    }
 
     if (!overlap.isStart) {
       if (!isStart) {

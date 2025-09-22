@@ -153,7 +153,8 @@ function createOrUpdatePV(pvName) {
     div.innerHTML = `
       <h3>${pvName}</h3>
       <label><input type="checkbox" class="use-indirect" data-pv="${pvName}" checked /> Use for indirect moves</label><br/>
-      <label><input type="checkbox" class="use-local" data-pv="${pvName}" checked /> Use for local moves</label>
+      <label><input type="checkbox" class="use-local" data-pv="${pvName}" checked /> Use for local moves</label><br/>
+      <label><input type="checkbox" class="use-split" data-pv="${pvName}" /> Allow to split extents</label>
       <hr/>
     `;
 
@@ -446,6 +447,7 @@ function generateCommands() {
 
     freeSets.set(pv).indirectAllowed = document.querySelector(`.use-indirect[data-pv="${pv}"]`)?.checked;
     freeSets.set(pv).localAllowed = document.querySelector(`.use-local[data-pv="${pv}"]`)?.checked;
+    freeSets.set(pv).splitAllowed = document.querySelector(`.use-split[data-pv="${pv}"]`)?.checked;
   });
 
   for (const loaded of loadedReport) {
