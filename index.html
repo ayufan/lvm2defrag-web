@@ -466,12 +466,6 @@ function generateCommands() {
 
   for (let i = 0; i < moves.length; i++) {
     const move = moves[i];
-    commands.push(
-      `# Move ${move.name} ${move.type} from ${move.from_set}[${move.from_start}-${move.from_start + move.size - 1}] to ${move.to_set}[${move.to_start}-${move.to_start + move.size - 1}] (${move.size} extents)`,
-      `pvmove --alloc anywhere ${move.from_set}:${move.from_start}-${move.from_start + move.size - 1} ${move.to_set}:${move.to_start}-${move.to_start + move.size - 1}`,
-      ``
-    );
-
     extentsMoved.total += move.size;
     if (move.type === 'indirect') {
       extentsMoved.indirect += move.size;
@@ -480,6 +474,20 @@ function generateCommands() {
     } else if (move.type === 'partial') {
       extentsMoved.partial += move.size;
     }
+  }
+
+  let extentsCount = 0;
+
+  for (let i = 0; i < moves.length; i++) {
+    const move = moves[i];
+    commands.push(
+      `# Move ${move.name} ${move.type} from ${move.from_set}[${move.from_start}-${move.from_start + move.size - 1}] to ${move.to_set}[${move.to_start}-${move.to_start + move.size - 1}] (${move.size} extents)`,
+      `echo "Move ${i+1} out of ${moves.length}. At ${(extentsCount*100/extentsMoved.total).toFixed(2)}%. Moving ${move.size} extents."`,
+      `pvmove --alloc anywhere ${move.from_set}:${move.from_start}-${move.from_start + move.size - 1} ${move.to_set}:${move.to_start}-${move.to_start + move.size - 1}`,
+      ``
+    );
+
+    extentsCount += move.size;
   }
 
   for (let i = 0; i < failedMoves.length; i++) {
