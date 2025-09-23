@@ -527,58 +527,28 @@ function sortPVExtents(pvName) {
   const list = document.getElementById(`pv-${safeId(pvName)}`);
   if (!list) return;
 
-  const extents = Array.from(list.children);
+  for (let i = 1; i < list.children.length; i++) {
+    const el = list.children[i];
+    const el_lv_name = el.dataset.lv_name;
+    const el_lv_start = parseInt(el.dataset.lv_start);
+    let same_prev_lv = false;
 
-  // Separate LV extents by LV name while preserving order within each LV
-  const lvGroups = {};
-  const freeExtents = [];
+    for (let j = 0; j < i; j++) {
+      const prev = list.children[j];
+      const prev_lv_name = prev.dataset.lv_name;
+      const prev_lv_start = parseInt(prev.dataset.lv_start);
 
-  extents.forEach(extent => {
-    if (extent.dataset.lv_name) {
-      const lvName = extent.dataset.lv_name;
-      if (!lvGroups[lvName]) {
-        lvGroups[lvName] = [];
+      const same_lv = el_lv_name === prev_lv_name;
+
+      // Move before the first extent with a higher start or after the same LV
+      if (same_lv ? el_lv_start < prev_lv_start : same_prev_lv) {
+        list.insertBefore(el, prev);
+        break;
       }
-      lvGroups[lvName].push(extent);
-    } else {
-      freeExtents.push(extent);
-    }
-  });
 
-  // Sort extents within each LV by their logical position (seg_start_pe)
-  for (const lvName in lvGroups) {
-    lvGroups[lvName].sort((a, b) => {
-      const aStart = parseInt(a.dataset.lv_start);
-      const bStart = parseInt(b.dataset.lv_start);
-      return aStart - bStart;
-    });
+      same_prev_lv = same_lv;
+    }
   }
-
-  // Get unique LV names in original order
-  const lvOrder = [];
-  extents.forEach(extent => {
-    const lvName = extent.dataset.lv_name;
-    if (lvName && !lvOrder.includes(lvName)) {
-      lvOrder.push(lvName);
-    }
-  });
-
-  // Clear the list and rebuild it
-  list.innerHTML = '';
-
-  // Add LV extents in original LV order, but sorted within each LV
-  lvOrder.forEach(lvName => {
-    if (lvGroups[lvName]) {
-      lvGroups[lvName].forEach(extent => {
-        list.appendChild(extent);
-      });
-    }
-  });
-
-  // Add free extents at the end
-  freeExtents.forEach(extent => {
-    list.appendChild(extent);
-  });
 
   // Update PV positions and save state
   updatePVs();
