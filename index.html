@@ -430,7 +430,7 @@ function dumpPVs() {
 function generateCommands() {
   const queue = [];
   const freeSets = new ExtentSetsWithNames();
-  
+
   pvOrder.forEach(pv => {
     const list = document.getElementById(`pv-${safeId(pv)}`);
     for (const el of list.children) {
@@ -466,13 +466,16 @@ function generateCommands() {
   }
 
   const commands = [];
-  let extentsMoved = { total: 0, indirect: 0, full: 0, partial: 0 };
+  let extentsMoved = { total: 0, indirect: 0, full: 0, partial: 0, cost: 0, indirect_cost: 0 };
 
   for (let i = 0; i < moves.length; i++) {
     const move = moves[i];
+    const cost = move.size * (move.from_set == move.to_set ? 3 : 1);
     extentsMoved.total += move.size;
+    extentsMoved.cost += cost;
     if (move.type === 'indirect') {
       extentsMoved.indirect += move.size;
+      extentsMoved.indirect_cost += cost;
     } else if (move.type === 'full') {
       extentsMoved.full += move.size;
     } else if (move.type === 'partial') {
@@ -510,6 +513,7 @@ function generateCommands() {
     `# Indirect extents moved: ${extentsMoved.indirect}`,
     `# Total moves planned: ${moves.length}`,
     `# Failed moves: ${failedMoves.length}`,
+    `# Estimated cost (lower is better): ${((extentsMoved.cost - extentsMoved.indirect_cost) / extentsMoved.cost).toFixed(2)}`,
     ``
   );
 
