@@ -156,12 +156,12 @@ function generateCommands() {
   const freeSets = new ExtentSetsWithNames();
 
   // load settings
-  pvOrder.forEach(pv => {
-    const list = document.getElementById(`pv-${safeId(pv)}`);
-    freeSets.set(pv).indirectAllowed = document.querySelector(`.use-indirect[data-pv="${pv}"]`)?.checked;
-    freeSets.set(pv).localAllowed = document.querySelector(`.use-local[data-pv="${pv}"]`)?.checked;
-    freeSets.set(pv).splitAllowed = document.querySelector(`.use-split[data-pv="${pv}"]`)?.checked;
-  });
+  for (const elem of enumPVElems()) {
+    const pv_name = elem.dataset.pv_name;
+    freeSets.set(pv_name).indirectAllowed = document.querySelector(`.use-indirect[data-pv="${pv_name}"]`)?.checked;
+    freeSets.set(pv_name).localAllowed = document.querySelector(`.use-local[data-pv="${pv_name}"]`)?.checked;
+    freeSets.set(pv_name).splitAllowed = document.querySelector(`.use-split[data-pv="${pv_name}"]`)?.checked;
+  }
 
   // load free space
   for (const loaded of loadedReport) {

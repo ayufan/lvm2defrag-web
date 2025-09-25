@@ -1,10 +1,12 @@
-let pvOrder = [];
 let loadedReport = [];
 
 function resetPVs() {
   const container = document.getElementById('pvContainer');
   container.innerHTML = '';
-  pvOrder = [];
+}
+
+function enumPVElems() {
+  return document.getElementsByClassName('pv-lvs');
 }
 
 function createOrUpdatePV(pvName) {
@@ -12,10 +14,6 @@ function createOrUpdatePV(pvName) {
 
   let list = document.getElementById(pvId);
   if (!list) {
-    if (!pvOrder.includes(pvName)) {
-      pvOrder.push(pvName);
-    }
-
     const container = document.getElementById('pvContainer');
 
     const div = document.createElement('div');
@@ -31,7 +29,8 @@ function createOrUpdatePV(pvName) {
 
     list = document.createElement('div');
     list.id = pvId;
-    list.dataset.pv = pvName;
+    list.className = 'pv-lvs';
+    list.dataset.pv_name = pvName;
 
     div.appendChild(list);
     container.appendChild(div);
@@ -92,27 +91,27 @@ function createOrUpdatePV(pvName) {
 }
 
 function updatePVs() {
-  pvOrder.forEach(pv => {
-    const list = document.getElementById(`pv-${safeId(pv)}`);
+  for (const elem of enumPVElems()) {
+    const pv_name = elem.dataset.pv_name;
     let pv_start = 0;
 
-    for (let i = 0; i < list.children.length; i++) {
-      let ext = list.children[i];
+    for (let i = 0; i < elem.children.length; i++) {
+      let ext = elem.children[i];
       let pv_size = parseInt(ext.dataset.pv_size);
 
       ext.dataset.moved_pv_start = pv_start;
-      ext.dataset.moved_pv_name = pv;
+      ext.dataset.moved_pv_name = pv_name;
 
       if (ext.dataset.lv_name) {
-        if (ext.dataset.pv_name !== pv || parseInt(ext.dataset.pv_start) !== pv_start) {
+        if (ext.dataset.pv_name !== pv_name || parseInt(ext.dataset.pv_start) !== pv_start) {
           ext.classList.add('moved');
         } else {
           ext.classList.remove('moved');
         }
       } else {
-        if (i != 0 && !list.children[i-1].dataset.lv_name) {
+        if (i != 0 && !elem.children[i-1].dataset.lv_name) {
           ext.remove();
-          ext = list.children[i-1];
+          ext = elem.children[i-1];
           ext.dataset.pv_size = parseInt(ext.dataset.pv_size) + pv_size;
           i--;
         } else if (pv_size <= 0) {
@@ -124,7 +123,7 @@ function updatePVs() {
 
       pv_start += pv_size;
     }
-  });
+  }
 }
 
 function insertLVtoPV(pvName, item) {
@@ -164,7 +163,6 @@ function createLVExtent(pvName, segment, movedPvName = null, movedPvStart = null
   movedPvName = movedPvName || pvName;
   movedPvStart = movedPvStart !== null ? movedPvStart : pv_start;
 
-  const list = createOrUpdatePV(pvName);
   const d = document.createElement('div');
   d.className = 'extent';
   d.innerText = `${lv_name} #${index}:${size_pe}`;
@@ -187,9 +185,8 @@ function createLVExtent(pvName, segment, movedPvName = null, movedPvStart = null
 function dumpPVs() {
   const output = [];
 
-  pvOrder.forEach(pvName => {
-    const list = document.getElementById(`pv-${safeId(pvName)}`);
-    for (const el of list.children) {
+  for (const pvElem of enumPVElems()) {
+    for (const el of pvElem.children) {
       const segment = {
         segtype: el.dataset.segtype,
         index: el.dataset.index,
@@ -214,7 +211,7 @@ function dumpPVs() {
 
       output.push(segment);
     }
-  });
+  }
 
   return output;
 }
