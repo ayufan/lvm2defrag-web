@@ -109,6 +109,9 @@ function updatePVs() {
           ext.classList.remove('moved');
         }
       } else {
+        ext.dataset.pv_start = pv_start;
+        ext.dataset.pv_name = pv_name;
+
         if (i != 0 && !elem.children[i-1].dataset.lv_name) {
           ext.remove();
           ext = elem.children[i-1];
