@@ -32,6 +32,24 @@ function orderSegments(segments) {
     if (ret !== 0) return ret;
     return a.pv_start - b.pv_start;
   });
+
+  // Reduce segments
+  for (let i = 1; i < segments.length; i++) {
+    const prev = segments[i - 1];
+    const curr = segments[i];
+    if (prev.segtype !== curr.segtype) continue;
+    if (prev.pv_name !== curr.pv_name) continue;
+    if (prev.pv_start + prev.pv_size !== curr.pv_start) continue;
+    if (prev.lv_start + prev.pv_size !== curr.lv_start) continue;
+
+    // Merge
+    prev.pv_size += curr.pv_size;
+    if (prev.lv_name)
+      prev.lv_size += curr.lv_size;
+    segments.splice(i, 1);
+    i--;
+  }
+
   segments.forEach(segment => {
     if (!segment.lv_name) return;
     if (!lvs[segment.lv_name])

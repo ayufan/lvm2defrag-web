@@ -80,6 +80,15 @@
   <strong>Step 2:</strong> Re-order extents:<br>
 </div>
 
+<div class="help" id="moveVisualizationSection" style="display: none;">
+  <strong>Move Visualization:</strong><br>
+  <div style="margin: 10px 0;">
+    <label for="moveSlider">Move: <span id="moveLabel">0 / 0</span></label><br>
+    <input type="range" id="moveSlider" min="0" max="0" value="0" style="width: 100%; margin: 5px 0;" />
+    <div id="moveDescription" style="font-size: 12px; color: #666; margin-top: 5px;"></div>
+  </div>
+</div>
+
 <div class="pv-container" id="pvContainer"></div>
 
 <div class="help">
@@ -87,6 +96,7 @@
   <button onclick="generateCommands()">Generate</button>
   <button onclick="copyGeneratedCommands()">Copy</button>
 </div>
+
 <pre id="commandsOutput"># No changes yet</pre>
 
 <div class="help">
@@ -151,6 +161,8 @@ function saveUserJSON() {
   localStorage.setItem('lvm_user_json', JSON.stringify(currentOrder));
 }
 
+let globalMoves = [];
+
 function generateCommands() {
   const queue = [];
   const freeSets = new ExtentSetsWithNames();
@@ -169,9 +181,14 @@ function generateCommands() {
     freeSets.add(loaded.pv_name, loaded.pv_start, loaded.pv_size);
   }
 
+  const fixedSegments = [];
+
   // load segments to move
   for (const segment of dumpPVs()) {
-    if (!segment.moved) continue;
+    if (!segment.moved) {
+      fixedSegments.push(segment);
+      continue;
+    }
 
     queue.push({
       from_start: segment.pv_start,
@@ -194,11 +211,15 @@ function generateCommands() {
     document.getElementById('errorMessage').innerText = '';
   }
 
+  // Setup move visualization
+  setupMoveVisualization([]); // (moves);
+
   const commands = [];
   let extentsMoved = { total: 0, indirect: 0, full: 0, partial: 0, cost: 1, indirect_cost: 0 };
 
   for (let i = 0; i < moves.length; i++) {
     const move = moves[i];
+    move.fixedSegments = fixedSegments;
     const cost = move.size * (move.from_set == move.to_set ? 3 : 1);
     extentsMoved.total += move.size;
     extentsMoved.cost += cost;
@@ -254,6 +275,53 @@ function generateCommands() {
 
 function copyGeneratedCommands() {
   navigator.clipboard.writeText(document.getElementById('commandsOutput').innerText);
+}
+
+function setupMoveVisualization(moves) {
+  const moveSlider = document.getElementById('moveSlider');
+  const moveLabel = document.getElementById('moveLabel');
+  const moveDescription = document.getElementById('moveDescription');
+  const section = document.getElementById('moveVisualizationSection');
+
+  globalMoves = moves;
+
+  if (globalMoves.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+
+  section.style.display = 'block';
+  moveSlider.max = globalMoves.length;
+  moveSlider.value = 0;
+
+  updateMoveVisualization(0);
+
+  moveSlider.oninput = function() {
+    updateMoveVisualization(parseInt(this.value));
+  };
+}
+
+function updateMoveVisualization(moveIndex) {
+  const moveLabel = document.getElementById('moveLabel');
+  const moveDescription = document.getElementById('moveDescription');
+
+  moveLabel.innerText = `${moveIndex} / ${globalMoves.length}`;
+
+  if (moveIndex === 0) {
+    // Show original state (as currently displayed in UI)
+    moveDescription.innerText = 'Original state (no moves applied)';
+    setPVs(loadedReport);
+  } else {
+    // Show state after applying move (moveIndex - 1)
+    const move = globalMoves[moveIndex - 1];
+    moveDescription.innerText = `After move ${moveIndex}: ${move.name} (${move.type})`;
+
+    if (move.capture) {
+      let segments = [...move.capture, ...move.fixedSegments];
+      segments = orderSegments(segments);
+      setPVs(segments);
+    }
+  }
 }
 
 // Extent splitting logic

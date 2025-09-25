@@ -155,7 +155,7 @@ function createLVFreeExtent(pvName, pv_start, pv_size) {
 function createLVExtent(pvName, segment, movedPvName = null, movedPvStart = null) {
   const lv_name = segment.lv_name;
   const start_pe = parseInt(segment.lv_start);
-  const size_pe = parseInt(segment.lv_size);
+  const lv_size = parseInt(segment.lv_size);
   const pv_start = parseInt(segment.pv_start);
   const pv_size = parseInt(segment.pv_size);
   const lv_index = parseInt(segment.lv_index);
@@ -165,14 +165,14 @@ function createLVExtent(pvName, segment, movedPvName = null, movedPvStart = null
 
   const d = document.createElement('div');
   d.className = 'extent';
-  d.innerText = `${lv_name} #${lv_index}:${size_pe}`;
+  d.innerText = `${lv_name} #${lv_index}:${pv_size}`;
   d.style.borderLeftColor = hashColor(lv_name);
   d.style.background = hashColor(lv_name);
   d.draggable = true;
   d.dataset.segtype = segment.segtype;
   d.dataset.lv_name = lv_name;
   d.dataset.lv_start = start_pe;
-  d.dataset.lv_size = size_pe;
+  d.dataset.lv_size = lv_size;
   d.dataset.pv_name = segment.pv_name;
   d.dataset.pv_start = pv_start;
   d.dataset.pv_size = pv_size;
