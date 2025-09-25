@@ -144,7 +144,17 @@ function parseJSON() {
       if (entry.segtype === 'free') {
         createLVFreeExtent(entry.pv_name, entry.pvseg_start, entry.pvseg_size);
       } else {
-        createLVExtent(entry.pv_name, entry);
+        const segment = {
+          segtype: entry.segtype,
+          pv_name: entry.pv_name,
+          pv_start: entry.pvseg_start,
+          pv_size: entry.pvseg_size,
+          lv_name: entry.lv_name,
+          lv_start: entry.seg_start_pe,
+          lv_size: entry.seg_size_pe,
+          index: entry.index,
+        }
+        createLVExtent(entry.pv_name, segment);
       }
     });
 
@@ -173,8 +183,8 @@ function parseUserJSON() {
 
     resetPVs();
     entries.forEach(entry => {
-      if (entry.extent) {
-        createLVExtent(entry.pv_name, entry.extent, entry.moved_pv_name, entry.moved_pv_start);
+      if (entry.segment) {
+        createLVExtent(entry.pv_name, entry.segment, entry.moved_pv_name, entry.moved_pv_start);
       } else {
         createLVFreeExtent(entry.moved_pv_name, entry.moved_pv_start, entry.pv_size);
       }

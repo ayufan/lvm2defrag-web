@@ -153,12 +153,13 @@ function createLVFreeExtent(pvName, pv_start, pv_size) {
   insertLVtoPV(pvName, d);
 }
 
-function createLVExtent(pvName, extent, movedPvName = null, movedPvStart = null) {
-  const start_pe = parseInt(extent.seg_start_pe);
-  const size_pe = parseInt(extent.seg_size_pe);
-  const pv_start = parseInt(extent.pvseg_start);
-  const pv_size = parseInt(extent.pvseg_size);
-  const index = parseInt(extent.index);
+function createLVExtent(pvName, segment, movedPvName = null, movedPvStart = null) {
+  const lv_name = segment.lv_name;
+  const start_pe = parseInt(segment.lv_start);
+  const size_pe = parseInt(segment.lv_size);
+  const pv_start = parseInt(segment.pv_start);
+  const pv_size = parseInt(segment.pv_size);
+  const index = parseInt(segment.index);
 
   movedPvName = movedPvName || pvName;
   movedPvStart = movedPvStart !== null ? movedPvStart : pv_start;
@@ -166,15 +167,15 @@ function createLVExtent(pvName, extent, movedPvName = null, movedPvStart = null)
   const list = createOrUpdatePV(pvName);
   const d = document.createElement('div');
   d.className = 'extent';
-  d.innerText = `${extent.lv_name} #${index}:${size_pe}`;
-  d.style.borderLeftColor = hashColor(extent.lv_name);
-  d.style.background = hashColor(extent.lv_name);
+  d.innerText = `${lv_name} #${index}:${size_pe}`;
+  d.style.borderLeftColor = hashColor(lv_name);
+  d.style.background = hashColor(lv_name);
   d.draggable = true;
-  d.dataset.segtype = extent.segtype;
-  d.dataset.lv_name = extent.lv_name;
+  d.dataset.segtype = segment.segtype;
+  d.dataset.lv_name = lv_name;
   d.dataset.lv_start = start_pe;
   d.dataset.lv_size = size_pe;
-  d.dataset.pv_name = extent.pv_name;
+  d.dataset.pv_name = segment.pv_name;
   d.dataset.pv_start = pv_start;
   d.dataset.pv_size = pv_size;
   d.dataset.moved_pv_name = movedPvName;
@@ -200,15 +201,15 @@ function dumpPVs() {
 
       // Add additional data for LV extents to enable proper restoration
       if (el.dataset.lv_name) {
-        item.extent = {
+        item.segment = {
           segtype: el.dataset.segtype,
-          seg_start_pe: el.dataset.lv_start,
-          seg_size_pe: el.dataset.lv_size,
-          pvseg_start: el.dataset.pv_start,
-          pvseg_size: el.dataset.pv_size,
-          index: el.dataset.index,
+          pv_name: el.dataset.pv_name,
+          lv_start: el.dataset.lv_start,
+          lv_size: el.dataset.lv_size,
           lv_name: el.dataset.lv_name,
-          pv_name: el.dataset.pv_name
+          pv_start: el.dataset.pv_start,
+          pv_size: el.dataset.pv_size,
+          index: el.dataset.index
         };
       }
 
