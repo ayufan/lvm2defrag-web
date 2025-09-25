@@ -1,27 +1,6 @@
 function parsePVSReport(report) {
   const input = JSON.parse(report);
   const entries = input.report[0].pv;
-  const lvSegments = {};
-
-  entries.sort((a, b) => {
-    const ret = a.pv_name.localeCompare(b.pv_name);
-    if (ret !== 0) return ret;
-    return parseInt(a.pvseg_start) - parseInt(b.pvseg_start);
-  });
-
-  entries.forEach(entry => {
-    if (!entry.lv_name) return;
-    if (!lvSegments[entry.lv_name])
-      lvSegments[entry.lv_name] = [];
-    lvSegments[entry.lv_name].push(entry);
-  });
-  for(const lv in lvSegments) {
-    lvSegments[lv].sort((a, b) => a.seg_start_pe - b.seg_start_pe);
-    lvSegments[lv].forEach((seg, i) => {
-      seg.lv_index = i + 1;
-    });
-  }
-
   const output = [];
 
   entries.forEach(entry => {
@@ -42,5 +21,29 @@ function parsePVSReport(report) {
     output.push(segment);
   });
 
-  return output;
+  return orderSegments(output);
+}
+
+function orderSegments(segments) {
+  const lvs = {};
+
+  segments.sort((a, b) => {
+    const ret = a.pv_name.localeCompare(b.pv_name);
+    if (ret !== 0) return ret;
+    return a.pv_start - b.pv_start;
+  });
+  segments.forEach(segment => {
+    if (!segment.lv_name) return;
+    if (!lvs[segment.lv_name])
+      lvs[segment.lv_name] = [];
+    lvs[segment.lv_name].push(segment);
+  });
+  for(const lv in lvs) {
+    lvs[lv].sort((a, b) => a.lv_start - b.lv_start);
+    lvs[lv].forEach((seg, i) => {
+      if (!seg.index)
+        seg.lv_index = i + 1;
+    });
+  }
+  return segments;
 }
