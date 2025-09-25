@@ -190,30 +190,29 @@ function dumpPVs() {
   pvOrder.forEach(pvName => {
     const list = document.getElementById(`pv-${safeId(pvName)}`);
     for (const el of list.children) {
-      const item = {
-        lv_name: el.dataset.lv_name || null,
+      const segment = {
+        segtype: el.dataset.segtype,
+        index: el.dataset.index,
         pv_name: el.dataset.pv_name,
         pv_start: parseInt(el.dataset.pv_start),
-        pv_size: parseInt(el.dataset.pv_size),
-        moved_pv_name: el.dataset.moved_pv_name,
-        moved_pv_start: parseInt(el.dataset.moved_pv_start)
+        pv_size: parseInt(el.dataset.pv_size)
       };
 
       // Add additional data for LV extents to enable proper restoration
       if (el.dataset.lv_name) {
-        item.segment = {
-          segtype: el.dataset.segtype,
-          pv_name: el.dataset.pv_name,
-          lv_start: el.dataset.lv_start,
-          lv_size: el.dataset.lv_size,
-          lv_name: el.dataset.lv_name,
-          pv_start: el.dataset.pv_start,
-          pv_size: el.dataset.pv_size,
-          index: el.dataset.index
-        };
+        segment.index = el.dataset.index;
+        segment.lv_name = el.dataset.lv_name;
+        segment.lv_start = parseInt(el.dataset.lv_start);
+        segment.lv_size = parseInt(el.dataset.lv_size);
+
+        if (el.classList.contains('moved')) {
+          segment.moved = true;
+          segment.moved_pv_name = el.dataset.moved_pv_name;
+          segment.moved_pv_start = parseInt(el.dataset.moved_pv_start);
+        }
       }
 
-      output.push(item);
+      output.push(segment);
     }
   });
 

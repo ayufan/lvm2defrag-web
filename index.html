@@ -179,16 +179,16 @@ function parseUserJSON() {
       return;
     }
 
-    const entries = JSON.parse(jsonInput);
+    const segments = JSON.parse(jsonInput);
 
     resetPVs();
-    entries.forEach(entry => {
-      if (entry.segment) {
-        createLVExtent(entry.pv_name, entry.segment, entry.moved_pv_name, entry.moved_pv_start);
+    for (const segment of segments) {
+      if (segment.segtype !== 'free') {
+        createLVExtent(segment.pv_name, segment, segment.moved_pv_name, segment.moved_pv_start);
       } else {
-        createLVFreeExtent(entry.moved_pv_name, entry.moved_pv_start, entry.pv_size);
+        createLVFreeExtent(segment.pv_name, segment.pv_start, segment.pv_size);
       }
-    });
+    }
     updatePVs();
   } catch (e) {
     document.getElementById('errorMessage').innerText = `Invalid JSON: ${e.message}`;
@@ -204,30 +204,32 @@ function generateCommands() {
   const queue = [];
   const freeSets = new ExtentSetsWithNames();
 
+  // load settings
   pvOrder.forEach(pv => {
     const list = document.getElementById(`pv-${safeId(pv)}`);
-    for (const el of list.children) {
-      if (!el.classList.contains('moved'))
-        continue;
-
-      queue.push({
-        from_start: parseInt(el.dataset.pv_start),
-        from_set: el.dataset.pv_name,
-        to_start: parseInt(el.dataset.moved_pv_start),
-        to_set: el.dataset.moved_pv_name,
-        size: parseInt(el.dataset.pv_size),
-        name: `${el.dataset.lv_name} #${el.dataset.index}[${el.dataset.lv_start}-${parseInt(el.dataset.lv_start) + parseInt(el.dataset.lv_size) - 1}]`
-      });
-    }
-
     freeSets.set(pv).indirectAllowed = document.querySelector(`.use-indirect[data-pv="${pv}"]`)?.checked;
     freeSets.set(pv).localAllowed = document.querySelector(`.use-local[data-pv="${pv}"]`)?.checked;
     freeSets.set(pv).splitAllowed = document.querySelector(`.use-split[data-pv="${pv}"]`)?.checked;
   });
 
+  // load free space
   for (const loaded of loadedReport) {
     if (loaded.lv_name) continue; // Skip LV extents
     freeSets.add(loaded.pv_name, loaded.pv_start, loaded.pv_size);
+  }
+
+  // load segments to move
+  for (const segment of dumpPVs()) {
+    if (!segment.moved) continue;
+
+    queue.push({
+      from_start: segment.pv_start,
+      from_set: segment.pv_name,
+      to_start: segment.moved_pv_start,
+      to_set: segment.moved_pv_name,
+      size: segment.pv_size,
+      name: `${segment.lv_name} #${segment.index}[${segment.lv_start}-${segment.lv_start + segment.lv_size - 1}]`
+    })
   }
 
   let { moves, failedMoves } = planMoves(queue, freeSets);
@@ -239,7 +241,7 @@ function generateCommands() {
   }
 
   const commands = [];
-  let extentsMoved = { total: 0, indirect: 0, full: 0, partial: 0, cost: 0, indirect_cost: 0 };
+  let extentsMoved = { total: 0, indirect: 0, full: 0, partial: 0, cost: 1, indirect_cost: 0 };
 
   for (let i = 0; i < moves.length; i++) {
     const move = moves[i];
