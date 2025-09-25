@@ -8,6 +8,7 @@
   <script src="planner.js"></script>
   <script src="utils.js"></script>
   <script src="pvs.js"></script>
+  <script src="ui.js"></script>
   <style>
     body { font-family: sans-serif; padding: 20px; }
     .help { background: #eef; padding: 10px; margin-bottom: 15px; border-left: 4px solid #88f; }
@@ -116,49 +117,8 @@
 function parseJSON() {
   try {
     const jsonInput = document.getElementById('jsonInput').value.trim();
-    const input = JSON.parse(jsonInput);
-    const entries = input.report[0].pv;
-    const lvSegments = {};
-
-    entries.sort((a, b) => {
-      const ret = a.pv_name.localeCompare(b.pv_name);
-      if (ret !== 0) return ret;
-      return parseInt(a.pvseg_start) - parseInt(b.pvseg_start);
-    });
-
-    entries.forEach(entry => {
-      if (!entry.lv_name) return;
-      if (!lvSegments[entry.lv_name])
-        lvSegments[entry.lv_name] = [];
-      lvSegments[entry.lv_name].push(entry);
-    });
-    for(const lv in lvSegments) {
-      lvSegments[lv].sort((a, b) => a.seg_start_pe - b.seg_start_pe);
-      lvSegments[lv].forEach((seg, i) => {
-        seg.index = i + 1;
-      });
-    }
-
-    resetPVs();
-    entries.forEach(entry => {
-      if (entry.segtype === 'free') {
-        createLVFreeExtent(entry.pv_name, entry.pvseg_start, entry.pvseg_size);
-      } else {
-        const segment = {
-          segtype: entry.segtype,
-          pv_name: entry.pv_name,
-          pv_start: entry.pvseg_start,
-          pv_size: entry.pvseg_size,
-          lv_name: entry.lv_name,
-          lv_start: entry.seg_start_pe,
-          lv_size: entry.seg_size_pe,
-          index: entry.index,
-        }
-        createLVExtent(entry.pv_name, segment);
-      }
-    });
-
-    updatePVs();
+    const segments = parsePVSReport(jsonInput);
+    setPVs(segments);
     loadedReport = dumpPVs();
 
     if (localStorage.getItem('lvm_json') !== jsonInput) {
@@ -180,16 +140,7 @@ function parseUserJSON() {
     }
 
     const segments = JSON.parse(jsonInput);
-
-    resetPVs();
-    for (const segment of segments) {
-      if (segment.segtype !== 'free') {
-        createLVExtent(segment.pv_name, segment, segment.moved_pv_name, segment.moved_pv_start);
-      } else {
-        createLVFreeExtent(segment.pv_name, segment.pv_start, segment.pv_size);
-      }
-    }
-    updatePVs();
+    setPVs(segments);
   } catch (e) {
     document.getElementById('errorMessage').innerText = `Invalid JSON: ${e.message}`;
   }
