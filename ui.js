@@ -158,14 +158,14 @@ function createLVExtent(pvName, segment, movedPvName = null, movedPvStart = null
   const size_pe = parseInt(segment.lv_size);
   const pv_start = parseInt(segment.pv_start);
   const pv_size = parseInt(segment.pv_size);
-  const index = parseInt(segment.index);
+  const lv_index = parseInt(segment.lv_index);
 
   movedPvName = movedPvName || pvName;
   movedPvStart = movedPvStart !== null ? movedPvStart : pv_start;
 
   const d = document.createElement('div');
   d.className = 'extent';
-  d.innerText = `${lv_name} #${index}:${size_pe}`;
+  d.innerText = `${lv_name} #${lv_index}:${size_pe}`;
   d.style.borderLeftColor = hashColor(lv_name);
   d.style.background = hashColor(lv_name);
   d.draggable = true;
@@ -178,7 +178,7 @@ function createLVExtent(pvName, segment, movedPvName = null, movedPvStart = null
   d.dataset.pv_size = pv_size;
   d.dataset.moved_pv_name = movedPvName;
   d.dataset.moved_pv_start = movedPvStart;
-  d.dataset.index = index;
+  d.dataset.lv_index = lv_index;
   insertLVtoPV(movedPvName, d);
 }
 
@@ -189,7 +189,6 @@ function dumpPVs() {
     for (const el of pvElem.children) {
       const segment = {
         segtype: el.dataset.segtype,
-        index: el.dataset.index,
         pv_name: el.dataset.pv_name,
         pv_start: parseInt(el.dataset.pv_start),
         pv_size: parseInt(el.dataset.pv_size)
@@ -197,7 +196,7 @@ function dumpPVs() {
 
       // Add additional data for LV extents to enable proper restoration
       if (el.dataset.lv_name) {
-        segment.index = el.dataset.index;
+        segment.lv_index = el.dataset.lv_index;
         segment.lv_name = el.dataset.lv_name;
         segment.lv_start = parseInt(el.dataset.lv_start);
         segment.lv_size = parseInt(el.dataset.lv_size);

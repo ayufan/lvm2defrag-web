@@ -18,7 +18,7 @@ function parsePVSReport(report) {
   for(const lv in lvSegments) {
     lvSegments[lv].sort((a, b) => a.seg_start_pe - b.seg_start_pe);
     lvSegments[lv].forEach((seg, i) => {
-      seg.index = i + 1;
+      seg.lv_index = i + 1;
     });
   }
 
@@ -36,7 +36,7 @@ function parsePVSReport(report) {
       segment.lv_name = entry.lv_name;
       segment.lv_start = entry.seg_start_pe;
       segment.lv_size = entry.seg_size_pe;
-      segment.index = entry.index;
+      segment.lv_index = entry.lv_index;
     }
 
     output.push(segment);

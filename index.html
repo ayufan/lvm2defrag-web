@@ -179,7 +179,10 @@ function generateCommands() {
       to_start: segment.moved_pv_start,
       to_set: segment.moved_pv_name,
       size: segment.pv_size,
-      name: `${segment.lv_name} #${segment.index}[${segment.lv_start}-${segment.lv_start + segment.lv_size - 1}]`
+      lv_name: segment.lv_name,
+      lv_start: segment.lv_start,
+      lv_index: segment.lv_index,
+      name: `${segment.lv_name} #${segment.lv_index}[${segment.lv_start}-${segment.lv_start + segment.lv_size - 1}]`
     })
   }
 
@@ -285,13 +288,13 @@ function confirmSplit() {
   const clone = selectedExtent.cloneNode(true);
   selectedExtent.dataset.pv_size = splitSize;
   selectedExtent.dataset.index += "-1";
-  selectedExtent.innerText = `${selectedExtent.dataset.lv_name} #${selectedExtent.dataset.index}:${splitSize}`;
+  selectedExtent.innerText = `${selectedExtent.dataset.lv_name} #${selectedExtent.dataset.lv_index}:${splitSize}`;
 
   clone.dataset.index += "-2";
   clone.dataset.pv_size = secondSize;
   clone.dataset.moved_pv_start = parseInt(selectedExtent.dataset.moved_pv_start) + splitSize;
   clone.dataset.pv_start = parseInt(selectedExtent.dataset.pv_start) + splitSize;
-  clone.innerText = `${clone.dataset.lv_name} #${clone.dataset.index}:${secondSize}`;
+  clone.innerText = `${clone.dataset.lv_name} #${clone.dataset.lv_index}:${secondSize}`;
 
   selectedExtent.parentElement.insertBefore(clone, selectedExtent.nextSibling);
 

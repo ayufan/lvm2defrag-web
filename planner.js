@@ -38,6 +38,7 @@ function directMove(extent, freeSets, usedSets, isStart = true, isEnd = true) {
     extentAtStart.size = overlap.start - extent.to_start;
     from_start += extentAtStart.size;
     to_start += extentAtStart.size;
+    extent.lv_start += extentAtStart.size;
     if (extentAtStart.size > 0) {
       newExtents.push(extentAtStart);
     }
@@ -52,6 +53,7 @@ function directMove(extent, freeSets, usedSets, isStart = true, isEnd = true) {
     extentAtEnd.from_start += overlapMovedSize;
     extentAtEnd.to_start += overlapMovedSize;
     extentAtEnd.size -= overlapMovedSize; // Reduce the size of the extent
+    extentAtEnd.lv_start += overlapMovedSize;
     if (extentAtEnd.size > 0) {
       newExtents.push(extentAtEnd);
     }
@@ -73,7 +75,9 @@ function directMove(extent, freeSets, usedSets, isStart = true, isEnd = true) {
     size: overlap.size,
     name: extent.name,
     type: overlap.size == extent.size ? 'full' : 'partial',
-    extent
+    lv_name: extent.lv_name,
+    lv_start: extent.lv_start,
+    lv_index: extent.lv_index,
   };
 
   return { move, newExtents };
@@ -112,6 +116,7 @@ function indirectMove(extent, freeSets, usedSets) {
     extentAtEnd.from_start += size;
     extentAtEnd.to_start += size;
     extentAtEnd.size -= size;
+    extentAtEnd.lv_start += size;
     newExtents.push(extentAtEnd);
   }
 
@@ -136,7 +141,9 @@ function indirectMove(extent, freeSets, usedSets) {
     size,
     name: extent.name,
     type: 'indirect',
-    extent: extent
+    lv_name: extent.lv_name,
+    lv_start: extent.lv_start,
+    lv_index: extent.lv_index,
   };
 
   newExtents.push(extent);
