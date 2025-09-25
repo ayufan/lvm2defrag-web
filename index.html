@@ -181,14 +181,9 @@ function generateCommands() {
     freeSets.add(loaded.pv_name, loaded.pv_start, loaded.pv_size);
   }
 
-  const fixedSegments = [];
-
   // load segments to move
   for (const segment of dumpPVs()) {
-    if (!segment.moved) {
-      fixedSegments.push(segment);
-      continue;
-    }
+    if (!segment.moved) continue;
 
     queue.push({
       from_start: segment.pv_start,
@@ -211,15 +206,23 @@ function generateCommands() {
     document.getElementById('errorMessage').innerText = '';
   }
 
-  // Setup move visualization
-  setupMoveVisualization([]); // (moves);
-
   const commands = [];
   let extentsMoved = { total: 0, indirect: 0, full: 0, partial: 0, cost: 1, indirect_cost: 0 };
 
+  let currentOrder = [...loadedReport];
+
   for (let i = 0; i < moves.length; i++) {
     const move = moves[i];
-    move.fixedSegments = fixedSegments;
+
+    if (false) {
+      move.captured = moveSegment([...currentOrder], move);
+      if (!move.captured) {
+        document.getElementById('errorMessage').innerText = `❌ Internal error: failed to simulate move for ${move.name}`;
+        return;
+      }
+      currentOrder = move.captured;
+    }
+
     const cost = move.size * (move.from_set == move.to_set ? 3 : 1);
     extentsMoved.total += move.size;
     extentsMoved.cost += cost;
@@ -232,6 +235,9 @@ function generateCommands() {
       extentsMoved.partial += move.size;
     }
   }
+
+  // Setup move visualization
+  setupMoveVisualization(moves); // (moves);
 
   let extentsCount = 0;
 
@@ -316,10 +322,8 @@ function updateMoveVisualization(moveIndex) {
     const move = globalMoves[moveIndex - 1];
     moveDescription.innerText = `After move ${moveIndex}: ${move.name} (${move.type})`;
 
-    if (move.capture) {
-      let segments = [...move.capture, ...move.fixedSegments];
-      segments = orderSegments(segments);
-      setPVs(segments);
+    if (move.captured) {
+      setPVs(move.captured);
     }
   }
 }
