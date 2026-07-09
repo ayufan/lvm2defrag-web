@@ -2,8 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const ROOT = path.join(__dirname, '..');
-const FIXTURES_DIR = path.join(__dirname, 'fixtures');
+const ROOT = path.join(__dirname, '..', '..', 'src');
+const FIXTURES_DIR = path.join(__dirname, '..', 'fixtures');
 
 // Tags every console call from inside planner.js with the test name, so its internal
 // logs are attributed and visible instead of blending into the PASS/FAIL summary lines.

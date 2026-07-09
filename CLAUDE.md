@@ -7,29 +7,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 A single-page, no-build, client-side tool that plans an optimal sequence of
 `pvmove` commands to defragment LVM physical volumes. Inspired by
 [lvm2defrag](https://github.com/bisqwit/lvm2defrag) but with its own planning
-algorithm. It's a static site (`index.html` + a handful of plain `<script>`
-files, no bundler/npm/framework) hosted at https://lvm2defrag.ayufan.dev/
-(see `CNAME`).
+algorithm. It's a static site under `src/` (`index.html` + a handful of
+plain `<script>` files, no bundler/npm/framework) hosted at
+https://lvm2defrag.ayufan.dev/ (see `CNAME` at the repo root).
 
 ## Commands
 
 There is no build step and no `package.json`. Everything runs on plain Node
-via `vm` (each test loads `lib/*.js` fresh into a sandboxed context) or
+via `vm` (each test loads `src/lib/*.js` fresh into a sandboxed context) or
 directly in the browser. All three test runners exit non-zero on any failure
 and print `PASS`/`FAIL` per case.
 
 ```bash
-node tests/run.js         # planner integration tests (fixtures under `tests/fixtures/*.json`)
-node tests/run.js hard    # only one fixture, e.g. `tests/fixtures/hard.json`
-node tests/move.js        # `performMove` unit tests (inline cases, no fixtures)
-node tests/segment.js     # `Segment` class unit tests (inline cases, no fixtures)
-open index.html           # the app itself - no server needed
+node tests/lib/planner.js       # planner integration tests (fixtures under `tests/fixtures/*.json`)
+node tests/lib/planner.js hard  # only one fixture, e.g. `tests/fixtures/hard.json`
+node tests/lib/move.js          # `performMove` unit tests (inline cases, no fixtures)
+node tests/lib/segment.js       # `Segment` class unit tests (inline cases, no fixtures)
+open src/index.html             # the app itself - no server needed
 ```
 
 ## Architecture
 
-Pure planning logic lives in `lib/` (testable in Node); DOM/browser code is
-`pvs.js`, `ui.js`, and the inline `<script>` in `index.html`. Load order:
+Everything web-served lives in `src/`. Pure planning logic is `src/lib/`
+(testable in Node, mirrored by `tests/lib/`); DOM/browser code is `pvs.js`,
+`ui.js`, and the inline `<script>` in `index.html`. Load order (paths within
+`src/`):
 
 ```
 utils.js -> pvs.js -> lib/segment.js -> lib/move.js -> lib/planner.js -> ui.js -> index.html inline script
@@ -183,15 +185,13 @@ Settings and the last-loaded/edited report persist to `localStorage`.
 
 ## Notes
 
-- `tests.js` at the repo root is leftover from an earlier architecture (its
-  companion `extents.js` no longer exists) and is not loaded by `index.html`
-  or referenced by any test runner - don't treat it as current.
 - Test fixtures in `tests/fixtures/*.json` have the shape
   `{ segments, pv_options }`, where segments needing a move already carry
   `target_pv_name`/`target_pv_start`. A raw `buildDebugState()` dump
-  (`{ source, target, pv_options }`) also works - `tests/run.js` reads
-  `segments || source`, so pasting the "Debug State"/"Copy State" output
-  from `index.html` straight into a fixture file works. `tests/run.js` runs
+  (`{ source, target, pv_options }`) also works - `tests/lib/planner.js`
+  reads `segments || source`, so pasting the "Debug State"/"Copy State"
+  output from `index.html` straight into a fixture file works.
+  `tests/lib/planner.js` runs
   `planAllMoves` on each fixture and checks every targeted segment's LV
   range ends up fully and contiguously at its target position.
 - `target_pv_name`/`target_pv_start` mean two related but distinct things

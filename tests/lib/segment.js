@@ -3,7 +3,7 @@ const path = require('path');
 const vm = require('vm');
 const assert = require('assert');
 
-const ROOT = path.join(__dirname, '..');
+const ROOT = path.join(__dirname, '..', '..', 'src');
 
 // `class` declarations don't attach to the vm context object the way `function`
 // declarations do, so pull the binding back out via a second runInContext call.
