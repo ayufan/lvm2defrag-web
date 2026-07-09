@@ -1,9 +1,11 @@
-// Segment: one extent of a PV, either free space or part of an LV. Fields:
+// Segment: one extent range of a PV, either free space or part of an LV. Fields:
 // {segtype, pv_name, pv_start, pv_size, lv_name?, lv_start?, lv_size?, lv_index?,
-// target_pv_name?, target_pv_start?, pending?, complete?}. pv_name/pv_start is always
-// the extent's real, current position. target_pv_name/target_pv_start, when present,
-// is the extent's ultimate intended position; pending and complete are derived from
-// comparing the two and are recomputed by updateMoveState, never set directly.
+// target_pv_name?, target_pv_start?, splitAllowed?, pending?, complete?}.
+// pv_name/pv_start is always the segment's real, current position.
+// target_pv_name/target_pv_start, when present, is the segment's ultimate intended
+// position; pending and complete are derived from comparing the two and are recomputed
+// by updateMoveState, never set directly. splitAllowed sticks to the segment as it
+// moves (default true when absent, see canSplit).
 
 class Segment {
   constructor(data) {
@@ -97,6 +99,10 @@ class Segment {
 
   isFree() {
     return !this.lv_name;
+  }
+
+  canSplit() {
+    return this.splitAllowed !== false;
   }
 
   shouldBeMoved() {

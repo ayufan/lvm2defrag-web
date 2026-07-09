@@ -73,7 +73,7 @@ function runCase(fixturePath, ctx) {
       pv_start: s.target_pv_start,
     }));
 
-  const { finalReport, finalQueue, finalIterations, finalMoves } = ctx.planAllMoves(list, pvOptions, 20000);
+  const { finalReport, finalQueue, finalIterations, finalMoves } = ctx.planAllMoves(list, pvOptions, 1000);
 
   if (finalQueue.length > 0) {
     return { failure: `${finalQueue.length} move(s) stuck after ${finalIterations} iteration(s)` };

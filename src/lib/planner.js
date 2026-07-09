@@ -1,5 +1,5 @@
 // Projects `segments` (e.g. dumpPVs() output, where target_pv_name/target_pv_start is
-// the extent's current DOM slot) onto what the layout would look like if every extent
+// the segment's current DOM slot) onto what the layout would look like if every segment
 // actually reached that slot - a UI debug preview, not something the planner consumes.
 function buildTargetReport(segments) {
   return segments.map(seg => {
@@ -20,8 +20,6 @@ function pvOption(pvOptions, set) {
   return {
     indirectAllowed: opts.indirectAllowed !== undefined ? opts.indirectAllowed : true,
     localAllowed: opts.localAllowed !== undefined ? opts.localAllowed : true,
-    splitAllowed: opts.splitAllowed !== undefined ? opts.splitAllowed : true,
-    maxIndirectSize: opts.maxIndirectSize || 0,
   };
 }
 
@@ -71,7 +69,7 @@ function segmentIndex(segments) {
   return index;
 }
 
-// First index in a position-sorted, non-overlapping segment list whose extent ends
+// First index in a position-sorted, non-overlapping segment list whose segment ends
 // past `start` - the first candidate that could overlap a range starting there.
 function firstEndingPast(list, start) {
   let lo = 0;
@@ -113,7 +111,7 @@ function findFreeOverlap(segments, set, start, size) {
 // staging - pickLongest's cost comparison already prefers a segment's own cheap direct
 // move over shuffling it aside when both are on the table for a given iteration.
 // `avoid` skips `segment`'s own current position (it can't block itself).
-function findBlockingExtent(segments, set, start, size, avoid = null) {
+function findBlockingSegment(segments, set, start, size, avoid = null) {
   const list = segmentIndex(segments).occupied[set] || [];
 
   for (let i = firstEndingPast(list, start); i < list.length; i++) {
@@ -132,7 +130,7 @@ function findBlockingExtent(segments, set, start, size, avoid = null) {
   return null;
 }
 
-function findIndirectSpace(segments, size, sourceSet, pvOptions, exclude = null) {
+function findIndirectSpace(segments, size, sourceSet, pvOptions, splitAllowed, exclude = null) {
   for (const seg of segmentIndex(segments).free) {
     if (exclude && seg.pv_name === exclude.set) {
       const segEnd = seg.pv_start + seg.pv_size;
@@ -144,14 +142,10 @@ function findIndirectSpace(segments, size, sourceSet, pvOptions, exclude = null)
 
     if (local ? !opts.localAllowed : !opts.indirectAllowed) continue;
 
-    let take = seg.pv_size;
-    if (!local && opts.maxIndirectSize) {
-      take = Math.min(take, opts.maxIndirectSize);
-    }
-    take = Math.min(take, size);
+    const take = Math.min(seg.pv_size, size);
 
     if (take <= 0) continue;
-    if (take < size && !opts.splitAllowed) continue;
+    if (take < size && !splitAllowed) continue;
 
     return { set: seg.pv_name, start: seg.pv_start, size: take };
   }
@@ -165,7 +159,7 @@ function directMove2(segment, segments, pvOptions) {
   const overlap = findFreeOverlap(segments, segment.target_pv_name, segment.target_pv_start, segment.pv_size);
   if (!overlap) return null;
 
-  if ((!overlap.isStart || !overlap.isEnd) && !pvOption(pvOptions, segment.target_pv_name).splitAllowed) {
+  if ((!overlap.isStart || !overlap.isEnd) && !segment.canSplit()) {
     return null;
   }
 
@@ -178,7 +172,7 @@ function directMove2(segment, segments, pvOptions) {
   return { moves: [move] };
 }
 
-// Collects every free extent usable as staging space for data currently on
+// Collects every free segment usable as staging space for data currently on
 // `sourceSet`, applying the same eligibility rules as findLargestFreeSpace.
 function eligibleFreeHoles(segments, sourceSet, pvOptions, exclude) {
   const holes = [];
@@ -194,7 +188,7 @@ function eligibleFreeHoles(segments, sourceSet, pvOptions, exclude) {
 
     if (local ? !opts.localAllowed : !opts.indirectAllowed) continue;
 
-    holes.push({ set: seg.pv_name, start: seg.pv_start, size: seg.pv_size, local, opts });
+    holes.push({ set: seg.pv_name, start: seg.pv_start, size: seg.pv_size, local });
   }
 
   return holes;
@@ -244,10 +238,7 @@ function clearTargetAndLand2(segment, segments, pvOptions) {
       }
 
       let take = hole ? Math.min(hole.size, end - at) : 0;
-      if (take > 0 && !hole.local && hole.opts.maxIndirectSize) {
-        take = Math.min(take, hole.opts.maxIndirectSize);
-      }
-      if (take <= 0 || (take < end - at && !hole.opts.splitAllowed)) break;
+      if (take <= 0 || (take < end - at && !blocker.canSplit())) break;
 
       // Cutting the last blocker at the range end plants a fresh boundary that later
       // costs its own stage+land pair. When its small tail past the range fits in the
@@ -255,13 +246,8 @@ function clearTargetAndLand2(segment, segments, pvOptions) {
       // the blocker has to move anyway, take the whole blocker in this one move.
       if (at + take === targetEnd && blockerEnd > targetEnd && blocker.shouldBeMoved()) {
         const tail = blockerEnd - targetEnd;
-        let extended = take + tail;
-        if (!hole.local && hole.opts.maxIndirectSize) {
-          extended = Math.min(extended, hole.opts.maxIndirectSize);
-        }
-        if (extended === take + tail && extended <= hole.size
-          && tail <= targetEnd - targetStart) {
-          take = extended;
+        if (take + tail <= hole.size && tail <= targetEnd - targetStart) {
+          take += tail;
           end = blockerEnd;
         }
       }
@@ -281,7 +267,7 @@ function clearTargetAndLand2(segment, segments, pvOptions) {
 
   const landed = cleared - targetStart;
   if (landed <= 0) return null;
-  if (landed < segment.pv_size && !pvOption(pvOptions, segment.target_pv_name).splitAllowed) return null;
+  if (landed < segment.pv_size && !segment.canSplit()) return null;
 
   const type = landed === segment.pv_size ? 'full' : 'partial';
   moves.push(makeMove(segment, segment.pv_name, segment.pv_start, segment.target_pv_name, targetStart, landed, type));
@@ -290,12 +276,12 @@ function clearTargetAndLand2(segment, segments, pvOptions) {
 }
 
 function directMoveViaFree2(segment, segments, pvOptions) {
-  const blocking = findBlockingExtent(segments, segment.target_pv_name, segment.target_pv_start, segment.pv_size, segment);
+  const blocking = findBlockingSegment(segments, segment.target_pv_name, segment.target_pv_start, segment.pv_size, segment);
   if (!blocking) return null;
 
   const size = blocking.overlapEnd - blocking.overlapStart;
   const exclude = { set: segment.target_pv_name, start: segment.target_pv_start, end: segment.target_pv_start + segment.pv_size };
-  const free = findLargestFreeSpace(segments, size, blocking.from_set, pvOptions, exclude);
+  const free = findLargestFreeSpace(segments, size, blocking.from_set, pvOptions, blocking.segment.canSplit(), exclude);
   if (!free) return null;
 
   // Filling the staging space is only safe when `segment` can then direct-move into
@@ -306,7 +292,7 @@ function directMoveViaFree2(segment, segments, pvOptions) {
   const landable = directAllowed(pvOptions, segment.pv_name, segment.target_pv_name);
   if (!landable) {
     const half = Math.floor(free.total / 2);
-    if (half > 0 && free.size > half && (half >= size || pvOption(pvOptions, free.set).splitAllowed)) {
+    if (half > 0 && free.size > half && (half >= size || blocking.segment.canSplit())) {
       free.size = half;
     }
   }
@@ -318,10 +304,10 @@ function directMoveViaFree2(segment, segments, pvOptions) {
 
 // Best-fit free space search: unlike findIndirectSpace (first-fit), scans every
 // candidate and keeps the largest usable chunk, so a swap can move as much as possible
-// in one hop instead of being capped by whichever free extent happens to be found first.
+// in one hop instead of being capped by whichever free segment happens to be found first.
 // `total` on the result sums every eligible candidate's raw capacity, so callers can
 // tell when the returned chunk would consume the last of the staging space.
-function findLargestFreeSpace(segments, size, sourceSet, pvOptions, exclude = null) {
+function findLargestFreeSpace(segments, size, sourceSet, pvOptions, splitAllowed, exclude = null) {
   let best = null;
   let total = 0;
 
@@ -338,14 +324,10 @@ function findLargestFreeSpace(segments, size, sourceSet, pvOptions, exclude = nu
 
     total += seg.pv_size;
 
-    let take = seg.pv_size;
-    if (!local && opts.maxIndirectSize) {
-      take = Math.min(take, opts.maxIndirectSize);
-    }
-    take = Math.min(take, size);
+    const take = Math.min(seg.pv_size, size);
 
     if (take <= 0) continue;
-    if (take < size && !opts.splitAllowed) continue;
+    if (take < size && !splitAllowed) continue;
 
     if (!best || take > best.size) {
       best = { set: seg.pv_name, start: seg.pv_start, size: take };
@@ -371,7 +353,7 @@ function buildSwapChain(segment, blocking, free) {
 }
 
 function swapMove2(segment, segments, pvOptions) {
-  const blocking = findBlockingExtent(segments, segment.target_pv_name, segment.target_pv_start, segment.pv_size, segment);
+  const blocking = findBlockingSegment(segments, segment.target_pv_name, segment.target_pv_start, segment.pv_size, segment);
   if (!blocking) return null;
 
   if (!directAllowed(pvOptions, segment.pv_name, segment.target_pv_name)) return null;
@@ -380,7 +362,7 @@ function swapMove2(segment, segments, pvOptions) {
   const maxSize = Math.min(overlapSize, segment.pv_size);
 
   const exclude = { set: segment.target_pv_name, start: segment.target_pv_start, end: segment.target_pv_start + segment.pv_size };
-  const free = findIndirectSpace(segments, maxSize, blocking.from_set, pvOptions, exclude);
+  const free = findIndirectSpace(segments, maxSize, blocking.from_set, pvOptions, blocking.segment.canSplit(), exclude);
   if (!free) return null;
 
   if (!directAllowed(pvOptions, free.set, segment.pv_name)) return null;
@@ -392,7 +374,7 @@ function swapMove2(segment, segments, pvOptions) {
 // largest available free space instead of the first fit, so the chain moves the biggest
 // chunk it can in a single hop.
 function swapMoveWithHalfFree2(segment, segments, pvOptions) {
-  const blocking = findBlockingExtent(segments, segment.target_pv_name, segment.target_pv_start, segment.pv_size, segment);
+  const blocking = findBlockingSegment(segments, segment.target_pv_name, segment.target_pv_start, segment.pv_size, segment);
   if (!blocking) return null;
 
   if (!directAllowed(pvOptions, segment.pv_name, segment.target_pv_name)) return null;
@@ -401,7 +383,7 @@ function swapMoveWithHalfFree2(segment, segments, pvOptions) {
   const maxSize = Math.min(overlapSize, segment.pv_size);
 
   const exclude = { set: segment.target_pv_name, start: segment.target_pv_start, end: segment.target_pv_start + segment.pv_size };
-  const free = findLargestFreeSpace(segments, maxSize, blocking.from_set, pvOptions, exclude);
+  const free = findLargestFreeSpace(segments, maxSize, blocking.from_set, pvOptions, blocking.segment.canSplit(), exclude);
   if (!free) return null;
 
   if (!directAllowed(pvOptions, free.set, segment.pv_name)) return null;
@@ -503,7 +485,7 @@ function planMoves(source, pvOptions = {}) {
   return { newReport: source, moves: [], final: true };
 }
 
-function planAllMoves(segments, pvOptions = {}, maxIterations = 20000) {
+function planAllMoves(segments, pvOptions = {}, maxIterations = 1000) {
   let report = Segment.clone(segments);
   const moves = [];
   let iterations = 0;

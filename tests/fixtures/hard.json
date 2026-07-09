@@ -32,9 +32,7 @@
   "pv_options": {
     "/dev/sda": {
       "indirectAllowed": true,
-      "localAllowed": true,
-      "splitAllowed": true,
-      "maxIndirectSize": 0
+      "localAllowed": true
     }
   }
 }

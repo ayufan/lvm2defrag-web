@@ -44,14 +44,18 @@ The whole system operates on flat arrays of "segment" objects:
 ```
 { segtype, pv_name, pv_start, pv_size,
   lv_name?, lv_start?, lv_size?, lv_index?,
-  target_pv_name?, target_pv_start?, pending?, complete? }
+  target_pv_name?, target_pv_start?, splitAllowed?, pending?, complete? }
 ```
 
-- `pv_name`/`pv_start` is always the extent's real current on-disk position.
+- `pv_name`/`pv_start` is always the segment's real current on-disk position.
 - A segment with no `lv_name` is free space.
-- `target_pv_name`/`target_pv_start`, when present, is the extent's ultimate
+- `target_pv_name`/`target_pv_start`, when present, is the segment's ultimate
   intended position; `pending`/`complete` are derived by comparing the two
   and recomputed on every `performMove` call.
+- `splitAllowed` sticks to the segment (and every piece subdivided from it)
+  and says whether the planner may split it mid-move; absent means allowed
+  (`canSplit()`). `index.html#buildPlanSegments` stamps it from the segment's
+  source-PV "Allow to split segments" checkbox.
 - `pvs.js#parsePVSReport` turns raw `pvs --reportformat json` output into
   this shape; fresh-parsed segments never carry a target.
 - `lib/move.js#orderSegments` sorts segments per-PV and merges adjacent
@@ -60,7 +64,7 @@ The whole system operates on flat arrays of "segment" objects:
 
 ### `lib/segment.js` - the `Segment` class
 
-Models one extent and owns the per-segment primitives:
+Models one extent range and owns the per-segment primitives:
 
 - `Segment.clone`/`Segment.find` - static, operate on a list.
 - `clone`, `subdivide` - `subdivide` carves a `[pv_start, pv_start+pv_size)`
@@ -96,7 +100,7 @@ returns a fresh array and never mutates its input.
 `planAllMoves(segments, pvOptions, maxIterations)` takes a single segment
 list and repeatedly picks the cheapest legal move via `planMoves` until
 nothing is left to move or nothing more can be done (capped at
-`maxIterations`, default 20000; `MAX_PLAN_ITERATIONS` in `index.html` passes
+`maxIterations`, default 1000; `MAX_PLAN_ITERATIONS` in `index.html` passes
 its own cap).
 
 There's no separate move-queue structure: `planMoves` recomputes the pending
@@ -117,10 +121,10 @@ The strategies, in tier order:
      lands the freed prefix of the segment in the same attempt. Bundling the
      clear and the landing keeps in-flight chunks from being whittled down
      into ever-smaller pieces by lone partial landings.
-   - `directMoveViaFree2` relocates one blocking extent "indirectly" into
+   - `directMoveViaFree2` relocates one blocking segment "indirectly" into
      free space elsewhere. The blocker can itself be a pending segment (e.g.
      two segments mutually occupying each other's target, as in a straight
-     swap) - `findBlockingExtent` doesn't exempt pending segments, since
+     swap) - `findBlockingSegment` doesn't exempt pending segments, since
      refusing to ever shuffle one aside would leave that kind of cycle
      permanently stuck. When the unblocked segment can't direct-move into
      the hole this stage opens up (e.g. local moves are banned on its PV, so
@@ -143,32 +147,34 @@ ties broken by the *largest* attempt - ranking by total cost instead would
 systematically favour the smallest possible move each iteration and explode
 the move count.
 
-Search helpers (`findFreeOverlap`/`findBlockingExtent`/
+Search helpers (`findFreeOverlap`/`findBlockingSegment`/
 `findLargestFreeSpace`/`eligibleFreeHoles`) go through `segmentIndex`, a
 per-PV, position-sorted view of the segment list memoized per array in a
 `WeakMap` - `performMove` returns a fresh array per executed move, so a
 stale index is never reused.
 
-`pvOptions` (per-PV `indirectAllowed`/`localAllowed`/`splitAllowed`/
-`maxIndirectSize`) constrains which PVs can be used as indirect staging
-space or split mid-move, and comes straight from the UI checkboxes
-(`buildPvOptions` in `index.html`).
+`pvOptions` (per-PV `indirectAllowed`/`localAllowed`) constrains which PVs
+can be used as indirect staging space, and comes straight from the UI
+checkboxes (`buildPvOptions` in `index.html`). Whether a segment may be
+split mid-move is not a PV option: it's the segment's own `splitAllowed`
+flag (see the segment model above).
 
 ### Browser/UI layer
 
 `pvs.js` only holds `parsePVSReport`. `ui.js` renders parsed segments as
-draggable `.extent` divs grouped by PV, reorders them via SortableJS (loaded
-from a CDN), and holds small DOM helpers including `dumpPVs()`/`setPVs()`.
+draggable `.segment` divs grouped by PV, reorders them via SortableJS
+(loaded from a CDN), and holds small DOM helpers including
+`dumpPVs()`/`setPVs()`.
 
-Each LV extent's `dataset.pv_name`/`pv_start` stay frozen at its real,
+Each LV segment's `dataset.pv_name`/`pv_start` stay frozen at its real,
 on-load position; `dataset.target_pv_name`/`target_pv_start` track its
 current DOM slot (recomputed by `updatePVs()` on every reorder). The
 `.moved` CSS class marks when the two differ - and only then does
-`dumpPVs()` include that extent's target fields at all.
+`dumpPVs()` include that segment's target fields at all.
 
 The inline script in `index.html` wires up the full flow: parse the pasted
-`pvs` JSON, read the DOM's current (possibly user-dragged) extent order back
-out via `dumpPVs()`, bridge that drag intent onto the real, untouched
+`pvs` JSON, read the DOM's current (possibly user-dragged) segment order
+back out via `dumpPVs()`, bridge that drag intent onto the real, untouched
 segment list via `Segment.scheduleMove` (`buildPlanSegments`), run the
 planner, replay every planned move through `performMove` to capture
 intermediate states for the move-by-move visualization slider, and finally
@@ -176,8 +182,8 @@ emit `pvmove` shell commands.
 
 `setPVs(segments, restoreTarget)` renders a segment list: `restoreTarget`
 (only used to restore a saved drag arrangement from `lvm_user_json`) places
-each extent at `segment.target_pv_name`/`target_pv_start`; every other
-caller (fresh parse, move-by-move snapshots) omits it so extents render at
+each segment at `segment.target_pv_name`/`target_pv_start`; every other
+caller (fresh parse, move-by-move snapshots) omits it so segments render at
 their real, current position - snapshot segments carry `target_pv_name` too,
 but that's the lib's planned-destination, not a DOM slot.
 
@@ -196,7 +202,7 @@ Settings and the last-loaded/edited report persist to `localStorage`.
   range ends up fully and contiguously at its target position.
 - `target_pv_name`/`target_pv_start` mean two related but distinct things
   depending on who produced the segment: on `dumpPVs()` output it's a DOM
-  slot (where the user dragged the extent to); everywhere else (lib output,
+  slot (where the user dragged the segment to); everywhere else (lib output,
   fixtures, `Segment.scheduleMove`) it's the planned final destination. They
   coincide for the common case (bridging a drag into a plan), but don't
   assume one always implies the other - see `setPVs`'s `restoreTarget` flag.

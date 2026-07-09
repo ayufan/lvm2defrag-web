@@ -260,15 +260,11 @@
   "pv_options": {
     "/dev/mapper/qlc_crypt": {
       "indirectAllowed": true,
-      "localAllowed": false,
-      "splitAllowed": true,
-      "maxIndirectSize": 0
+      "localAllowed": false
     },
     "/dev/mapper/tank_r1_crypt": {
       "indirectAllowed": true,
-      "localAllowed": false,
-      "splitAllowed": true,
-      "maxIndirectSize": 0
+      "localAllowed": false
     }
   }
 }

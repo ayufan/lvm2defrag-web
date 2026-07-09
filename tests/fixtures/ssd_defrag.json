@@ -76,15 +76,11 @@
   "pv_options": {
     "/dev/mapper/qlc_crypt": {
       "indirectAllowed": true,
-      "localAllowed": true,
-      "splitAllowed": true,
-      "maxIndirectSize": 0
+      "localAllowed": true
     },
     "/dev/mapper/ssd_crypt": {
       "indirectAllowed": true,
-      "localAllowed": true,
-      "splitAllowed": true,
-      "maxIndirectSize": 0
+      "localAllowed": true
     }
   }
 }

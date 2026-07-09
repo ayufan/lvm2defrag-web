@@ -8,7 +8,8 @@
       "lv_index": "1",
       "lv_name": "timemachine",
       "lv_start": 0,
-      "lv_size": 393216
+      "lv_size": 393216,
+      "splitAllowed": false
     },
     {
       "segtype": "linear",
@@ -18,7 +19,8 @@
       "lv_index": "1",
       "lv_name": "sources",
       "lv_start": 0,
-      "lv_size": 25600
+      "lv_size": 25600,
+      "splitAllowed": false
     },
     {
       "segtype": "linear",
@@ -28,7 +30,8 @@
       "lv_index": "2",
       "lv_name": "timemachine",
       "lv_start": 393216,
-      "lv_size": 259072
+      "lv_size": 259072,
+      "splitAllowed": false
     },
     {
       "segtype": "free",
@@ -44,7 +47,8 @@
       "lv_index": "1",
       "lv_name": "root",
       "lv_start": 0,
-      "lv_size": 5120
+      "lv_size": 5120,
+      "splitAllowed": false
     },
     {
       "segtype": "linear",
@@ -54,7 +58,8 @@
       "lv_index": "1",
       "lv_name": "apps",
       "lv_start": 0,
-      "lv_size": 6144
+      "lv_size": 6144,
+      "splitAllowed": false
     },
     {
       "segtype": "linear",
@@ -64,7 +69,8 @@
       "lv_index": "1",
       "lv_name": "swap",
       "lv_start": 0,
-      "lv_size": 1024
+      "lv_size": 1024,
+      "splitAllowed": false
     },
     {
       "segtype": "linear",
@@ -74,7 +80,8 @@
       "lv_index": "1",
       "lv_name": "logs",
       "lv_start": 0,
-      "lv_size": 1024
+      "lv_size": 1024,
+      "splitAllowed": false
     },
     {
       "segtype": "linear",
@@ -84,7 +91,8 @@
       "lv_index": "1",
       "lv_name": "servers",
       "lv_start": 0,
-      "lv_size": 51200
+      "lv_size": 51200,
+      "splitAllowed": false
     },
     {
       "segtype": "linear",
@@ -94,7 +102,8 @@
       "lv_index": "1",
       "lv_name": "media",
       "lv_start": 0,
-      "lv_size": 128000
+      "lv_size": 128000,
+      "splitAllowed": false
     },
     {
       "segtype": "linear",
@@ -104,7 +113,8 @@
       "lv_index": "2",
       "lv_name": "servers",
       "lv_start": 51200,
-      "lv_size": 25600
+      "lv_size": 25600,
+      "splitAllowed": false
     },
     {
       "segtype": "linear",
@@ -114,7 +124,8 @@
       "lv_index": "2",
       "lv_name": "media",
       "lv_start": 128000,
-      "lv_size": 256000
+      "lv_size": 256000,
+      "splitAllowed": false
     },
     {
       "segtype": "free",
@@ -130,7 +141,8 @@
       "lv_index": "6",
       "lv_name": "archive",
       "lv_start": 1526540,
-      "lv_size": 314575
+      "lv_size": 314575,
+      "splitAllowed": false
     },
     {
       "segtype": "linear",
@@ -140,7 +152,8 @@
       "lv_index": "2",
       "lv_name": "archive",
       "lv_start": 632794,
-      "lv_size": 179201
+      "lv_size": 179201,
+      "splitAllowed": false
     },
     {
       "segtype": "linear",
@@ -150,7 +163,8 @@
       "lv_index": "8",
       "lv_name": "archive",
       "lv_start": 2081014,
-      "lv_size": 593714
+      "lv_size": 593714,
+      "splitAllowed": false
     },
     {
       "segtype": "linear",
@@ -160,7 +174,8 @@
       "lv_index": "3",
       "lv_name": "archive",
       "lv_start": 811995,
-      "lv_size": 102437
+      "lv_size": 102437,
+      "splitAllowed": false
     },
     {
       "segtype": "linear",
@@ -170,7 +185,8 @@
       "lv_index": "10",
       "lv_name": "archive",
       "lv_start": 2802728,
-      "lv_size": 58574
+      "lv_size": 58574,
+      "splitAllowed": false
     },
     {
       "segtype": "linear",
@@ -180,7 +196,8 @@
       "lv_index": "4",
       "lv_name": "archive",
       "lv_start": 914432,
-      "lv_size": 210944
+      "lv_size": 210944,
+      "splitAllowed": false
     },
     {
       "segtype": "linear",
@@ -190,7 +207,8 @@
       "lv_index": "9",
       "lv_name": "archive",
       "lv_start": 2674728,
-      "lv_size": 128000
+      "lv_size": 128000,
+      "splitAllowed": false
     },
     {
       "segtype": "linear",
@@ -200,7 +218,8 @@
       "lv_index": "5",
       "lv_name": "archive",
       "lv_start": 1125376,
-      "lv_size": 401164
+      "lv_size": 401164,
+      "splitAllowed": false
     },
     {
       "segtype": "linear",
@@ -210,7 +229,8 @@
       "lv_index": "1",
       "lv_name": "archive",
       "lv_start": 0,
-      "lv_size": 632794
+      "lv_size": 632794,
+      "splitAllowed": false
     },
     {
       "segtype": "linear",
@@ -220,7 +240,8 @@
       "lv_index": "7",
       "lv_name": "archive",
       "lv_start": 1841115,
-      "lv_size": 239899
+      "lv_size": 239899,
+      "splitAllowed": false
     },
     {
       "segtype": "linear",
@@ -230,7 +251,8 @@
       "lv_index": "11",
       "lv_name": "archive",
       "lv_start": 2861302,
-      "lv_size": 467927
+      "lv_size": 467927,
+      "splitAllowed": false
     },
     {
       "segtype": "free",
@@ -246,7 +268,8 @@
       "lv_index": "1",
       "lv_name": "backups",
       "lv_start": 0,
-      "lv_size": 262144
+      "lv_size": 262144,
+      "splitAllowed": false
     },
     {
       "segtype": "free",
@@ -262,7 +285,8 @@
       "lv_index": "13",
       "lv_name": "archive",
       "lv_start": 3502766,
-      "lv_size": 167250
+      "lv_size": 167250,
+      "splitAllowed": false
     },
     {
       "segtype": "free",
@@ -278,33 +302,26 @@
       "lv_index": "12",
       "lv_name": "archive",
       "lv_start": 3329229,
-      "lv_size": 173537
+      "lv_size": 173537,
+      "splitAllowed": false
     }
   ],
   "pv_options": {
     "/dev/mapper/qlc_crypt": {
       "indirectAllowed": true,
-      "localAllowed": false,
-      "splitAllowed": false,
-      "maxIndirectSize": 0
+      "localAllowed": false
     },
     "/dev/mapper/ssd_crypt": {
       "indirectAllowed": true,
-      "localAllowed": false,
-      "splitAllowed": false,
-      "maxIndirectSize": 0
+      "localAllowed": false
     },
     "/dev/mapper/tank_r1_crypt": {
       "indirectAllowed": true,
-      "localAllowed": false,
-      "splitAllowed": false,
-      "maxIndirectSize": 0
+      "localAllowed": false
     },
     "/dev/mapper/tank_r2_crypt": {
       "indirectAllowed": true,
-      "localAllowed": false,
-      "splitAllowed": false,
-      "maxIndirectSize": 0
+      "localAllowed": false
     }
   }
 }

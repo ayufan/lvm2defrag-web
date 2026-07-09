@@ -1,4 +1,4 @@
-// Segment (defined in lib/segment.js, loaded before this file) models one extent and
+// Segment (defined in lib/segment.js, loaded before this file) models one extent range and
 // owns the subdivide/find/move-state primitives; this file only sequences those into
 // one atomic move.
 

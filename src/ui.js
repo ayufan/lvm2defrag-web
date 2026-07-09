@@ -20,11 +20,10 @@ function createOrUpdatePV(pvName) {
     div.className = 'pv';
     div.innerHTML = `
       <h3>${pvName}</h3>
-      <label><input type="checkbox" class="use-indirect" data-pv="${pvName}" checked /> Use for indirect moves</label><br/>
-      <label style="margin-left: 20px;">Max indirect size: <input type="number" class="max-indirect-size" data-pv="${pvName}" min="1" placeholder="no limit" style="width: 80px;" /></label><br/>
-      <label><input type="checkbox" class="use-local" data-pv="${pvName}" /> Allow for local moves</label><br/>
-      <label><input type="checkbox" class="use-split" data-pv="${pvName}" /> Allow to split extents</label><br/>
-      <button onclick="sortPVExtents('${pvName}')" style="font-size: 12px; padding: 2px 6px;">Sort Extents</button>
+      <label><input type="checkbox" class="use-split" data-pv="${pvName}" checked /> Allow to split segments</label><br/>
+      <label><input type="checkbox" class="use-local" data-pv="${pvName}" /> Accept local moves</label><br/>
+      <label><input type="checkbox" class="use-indirect" data-pv="${pvName}" checked /> Accept indirect moves</label><br/>
+      <button onclick="sortPVSegments('${pvName}')" style="font-size: 12px; padding: 2px 6px;">Sort Segments</button>
       <hr/>
     `;
 
@@ -37,17 +36,12 @@ function createOrUpdatePV(pvName) {
     container.appendChild(div);
 
     // Add event listeners to checkboxes for persistence
-    div.querySelector('.use-indirect').addEventListener('change', () => {
-      const indirectCheckbox = div.querySelector('.use-indirect');
-      div.querySelector('.max-indirect-size').disabled = !indirectCheckbox.checked;
-      saveSettings();
-    });
+    div.querySelector('.use-indirect').addEventListener('change', saveSettings);
     div.querySelector('.use-local').addEventListener('change', saveSettings);
     div.querySelector('.use-split').addEventListener('change', saveSettings);
-    div.querySelector('.max-indirect-size').addEventListener('change', saveSettings);
 
     list.sortable = new Sortable(list, {
-      group: 'extents',
+      group: 'segments',
       animation: 150,
       onEnd: evt => {
         const item = evt.item;
@@ -88,7 +82,7 @@ function createOrUpdatePV(pvName) {
           }
         }
 
-        createLVFreeExtent(
+        createLVFreeSegment(
           item.dataset.target_pv_name,
           parseInt(item.dataset.target_pv_start),
           pv_size - left_size);
@@ -152,9 +146,9 @@ function insertLVtoPV(pvName, item) {
   list.appendChild(item);
 }
 
-function createLVFreeExtent(pvName, pv_start, pv_size) {
+function createLVFreeSegment(pvName, pv_start, pv_size) {
   const d = document.createElement('div');
-  d.className = 'extent free';
+  d.className = 'segment free';
   d.innerText = `free:${pv_size}`;
   d.draggable = false;
   d.dataset.segtype = 'free';
@@ -166,12 +160,12 @@ function createLVFreeExtent(pvName, pv_start, pv_size) {
   insertLVtoPV(pvName, d);
 }
 
-// `targetPvName`/`targetPvStart` control where this extent is inserted into the DOM
+// `targetPvName`/`targetPvStart` control where this segment is inserted into the DOM
 // (its visual slot) - independent of segment.target_pv_name/target_pv_start, which is
 // the lib's planned-destination concept. Callers restoring a saved drag arrangement
 // pass the saved slot; callers rendering a real position (fresh parse, move-by-move
-// snapshots) omit them so the extent lands at its own current pv_name/pv_start.
-function createLVExtent(pvName, segment, targetPvName = null, targetPvStart = null) {
+// snapshots) omit them so the segment lands at its own current pv_name/pv_start.
+function createLVSegment(pvName, segment, targetPvName = null, targetPvStart = null) {
   const lv_name = segment.lv_name;
   const start_pe = parseInt(segment.lv_start);
   const lv_size = parseInt(segment.lv_size);
@@ -183,7 +177,7 @@ function createLVExtent(pvName, segment, targetPvName = null, targetPvStart = nu
   targetPvStart = targetPvStart !== null ? targetPvStart : pv_start;
 
   const d = document.createElement('div');
-  d.className = 'extent';
+  d.className = 'segment';
   d.innerText = `${lv_name} #${lv_index}:${pv_size}`;
   d.style.borderLeftColor = hashColor(lv_name);
   d.style.background = hashColor(lv_name);
@@ -213,8 +207,8 @@ function dumpPVs() {
         pv_size: parseInt(el.dataset.pv_size)
       };
 
-      // Add additional data for LV extents to enable proper restoration. target_pv_name/
-      // target_pv_start (the extent's current DOM slot) are only included when it's
+      // Add additional data for LV segments to enable proper restoration. target_pv_name/
+      // target_pv_start (the segment's current DOM slot) are only included when it's
       // actually `.moved` - a pristine dump (nothing dragged) must carry no target
       // fields at all, since it doubles as Segment.scheduleMove's untouched baseline
       // and scheduleMove rejects segments that already have a target set.
@@ -237,7 +231,7 @@ function dumpPVs() {
   return output;
 }
 
-function sortPVExtents(pvName) {
+function sortPVSegments(pvName) {
   const list = document.getElementById(`pv-${safeId(pvName)}`);
   if (!list) return;
 
@@ -254,7 +248,7 @@ function sortPVExtents(pvName) {
 
       const same_lv = el_lv_name === prev_lv_name;
 
-      // Move before the first extent with a higher start or after the same LV
+      // Move before the first segment with a higher start or after the same LV
       if (same_lv ? el_lv_start < prev_lv_start : same_prev_lv) {
         list.insertBefore(el, prev);
         break;
@@ -269,7 +263,7 @@ function sortPVExtents(pvName) {
   saveUserJSON();
 }
 
-// `restoreTarget` re-inserts LV extents at their saved DOM slot (segment.target_pv_name/
+// `restoreTarget` re-inserts LV segments at their saved DOM slot (segment.target_pv_name/
 // target_pv_start) - only correct for restoring a previously dumped drag arrangement
 // (dumpPVs() output round-tripped through localStorage). Real segment lists (fresh
 // parses, move-by-move simulation snapshots) also carry target_pv_name/target_pv_start
@@ -280,12 +274,12 @@ function setPVs(segments, restoreTarget = false) {
   for (const segment of segments) {
     if (segment.segtype !== 'free') {
       if (restoreTarget) {
-        createLVExtent(segment.pv_name, segment, segment.target_pv_name, segment.target_pv_start);
+        createLVSegment(segment.pv_name, segment, segment.target_pv_name, segment.target_pv_start);
       } else {
-        createLVExtent(segment.pv_name, segment);
+        createLVSegment(segment.pv_name, segment);
       }
     } else {
-      createLVFreeExtent(segment.pv_name, segment.pv_start, segment.pv_size);
+      createLVFreeSegment(segment.pv_name, segment.pv_start, segment.pv_size);
     }
   }
   updatePVs();
