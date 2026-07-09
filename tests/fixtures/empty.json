@@ -1,0 +1,310 @@
+{
+  "segments": [
+    {
+      "segtype": "linear",
+      "pv_name": "/dev/mapper/qlc_crypt",
+      "pv_start": 0,
+      "pv_size": 393216,
+      "lv_index": "1",
+      "lv_name": "timemachine",
+      "lv_start": 0,
+      "lv_size": 393216
+    },
+    {
+      "segtype": "linear",
+      "pv_name": "/dev/mapper/qlc_crypt",
+      "pv_start": 393216,
+      "pv_size": 25600,
+      "lv_index": "1",
+      "lv_name": "sources",
+      "lv_start": 0,
+      "lv_size": 25600
+    },
+    {
+      "segtype": "linear",
+      "pv_name": "/dev/mapper/qlc_crypt",
+      "pv_start": 418816,
+      "pv_size": 259072,
+      "lv_index": "2",
+      "lv_name": "timemachine",
+      "lv_start": 393216,
+      "lv_size": 259072
+    },
+    {
+      "segtype": "free",
+      "pv_name": "/dev/mapper/qlc_crypt",
+      "pv_start": 677888,
+      "pv_size": 108507
+    },
+    {
+      "segtype": "linear",
+      "pv_name": "/dev/mapper/ssd_crypt",
+      "pv_start": 0,
+      "pv_size": 5120,
+      "lv_index": "1",
+      "lv_name": "root",
+      "lv_start": 0,
+      "lv_size": 5120
+    },
+    {
+      "segtype": "linear",
+      "pv_name": "/dev/mapper/ssd_crypt",
+      "pv_start": 5120,
+      "pv_size": 6144,
+      "lv_index": "1",
+      "lv_name": "apps",
+      "lv_start": 0,
+      "lv_size": 6144
+    },
+    {
+      "segtype": "linear",
+      "pv_name": "/dev/mapper/ssd_crypt",
+      "pv_start": 11264,
+      "pv_size": 1024,
+      "lv_index": "1",
+      "lv_name": "swap",
+      "lv_start": 0,
+      "lv_size": 1024
+    },
+    {
+      "segtype": "linear",
+      "pv_name": "/dev/mapper/ssd_crypt",
+      "pv_start": 12288,
+      "pv_size": 1024,
+      "lv_index": "1",
+      "lv_name": "logs",
+      "lv_start": 0,
+      "lv_size": 1024
+    },
+    {
+      "segtype": "linear",
+      "pv_name": "/dev/mapper/ssd_crypt",
+      "pv_start": 13312,
+      "pv_size": 51200,
+      "lv_index": "1",
+      "lv_name": "servers",
+      "lv_start": 0,
+      "lv_size": 51200
+    },
+    {
+      "segtype": "linear",
+      "pv_name": "/dev/mapper/ssd_crypt",
+      "pv_start": 64512,
+      "pv_size": 128000,
+      "lv_index": "1",
+      "lv_name": "media",
+      "lv_start": 0,
+      "lv_size": 128000
+    },
+    {
+      "segtype": "linear",
+      "pv_name": "/dev/mapper/ssd_crypt",
+      "pv_start": 192512,
+      "pv_size": 25600,
+      "lv_index": "2",
+      "lv_name": "servers",
+      "lv_start": 51200,
+      "lv_size": 25600
+    },
+    {
+      "segtype": "linear",
+      "pv_name": "/dev/mapper/ssd_crypt",
+      "pv_start": 218112,
+      "pv_size": 256000,
+      "lv_index": "2",
+      "lv_name": "media",
+      "lv_start": 128000,
+      "lv_size": 256000
+    },
+    {
+      "segtype": "free",
+      "pv_name": "/dev/mapper/ssd_crypt",
+      "pv_start": 474112,
+      "pv_size": 2495
+    },
+    {
+      "segtype": "linear",
+      "pv_name": "/dev/mapper/tank_r1_crypt",
+      "pv_start": 0,
+      "pv_size": 314575,
+      "lv_index": "6",
+      "lv_name": "archive",
+      "lv_start": 1526540,
+      "lv_size": 314575
+    },
+    {
+      "segtype": "linear",
+      "pv_name": "/dev/mapper/tank_r1_crypt",
+      "pv_start": 314575,
+      "pv_size": 179201,
+      "lv_index": "2",
+      "lv_name": "archive",
+      "lv_start": 632794,
+      "lv_size": 179201
+    },
+    {
+      "segtype": "linear",
+      "pv_name": "/dev/mapper/tank_r1_crypt",
+      "pv_start": 493776,
+      "pv_size": 593714,
+      "lv_index": "8",
+      "lv_name": "archive",
+      "lv_start": 2081014,
+      "lv_size": 593714
+    },
+    {
+      "segtype": "linear",
+      "pv_name": "/dev/mapper/tank_r1_crypt",
+      "pv_start": 1087490,
+      "pv_size": 102437,
+      "lv_index": "3",
+      "lv_name": "archive",
+      "lv_start": 811995,
+      "lv_size": 102437
+    },
+    {
+      "segtype": "linear",
+      "pv_name": "/dev/mapper/tank_r1_crypt",
+      "pv_start": 1189927,
+      "pv_size": 58574,
+      "lv_index": "10",
+      "lv_name": "archive",
+      "lv_start": 2802728,
+      "lv_size": 58574
+    },
+    {
+      "segtype": "linear",
+      "pv_name": "/dev/mapper/tank_r1_crypt",
+      "pv_start": 1248501,
+      "pv_size": 210944,
+      "lv_index": "4",
+      "lv_name": "archive",
+      "lv_start": 914432,
+      "lv_size": 210944
+    },
+    {
+      "segtype": "linear",
+      "pv_name": "/dev/mapper/tank_r1_crypt",
+      "pv_start": 1459445,
+      "pv_size": 128000,
+      "lv_index": "9",
+      "lv_name": "archive",
+      "lv_start": 2674728,
+      "lv_size": 128000
+    },
+    {
+      "segtype": "linear",
+      "pv_name": "/dev/mapper/tank_r1_crypt",
+      "pv_start": 1587445,
+      "pv_size": 401164,
+      "lv_index": "5",
+      "lv_name": "archive",
+      "lv_start": 1125376,
+      "lv_size": 401164
+    },
+    {
+      "segtype": "linear",
+      "pv_name": "/dev/mapper/tank_r1_crypt",
+      "pv_start": 1988609,
+      "pv_size": 632794,
+      "lv_index": "1",
+      "lv_name": "archive",
+      "lv_start": 0,
+      "lv_size": 632794
+    },
+    {
+      "segtype": "linear",
+      "pv_name": "/dev/mapper/tank_r1_crypt",
+      "pv_start": 2621403,
+      "pv_size": 239899,
+      "lv_index": "7",
+      "lv_name": "archive",
+      "lv_start": 1841115,
+      "lv_size": 239899
+    },
+    {
+      "segtype": "linear",
+      "pv_name": "/dev/mapper/tank_r1_crypt",
+      "pv_start": 2861302,
+      "pv_size": 467927,
+      "lv_index": "11",
+      "lv_name": "archive",
+      "lv_start": 2861302,
+      "lv_size": 467927
+    },
+    {
+      "segtype": "free",
+      "pv_name": "/dev/mapper/tank_r1_crypt",
+      "pv_start": 3329229,
+      "pv_size": 8740
+    },
+    {
+      "segtype": "linear",
+      "pv_name": "/dev/mapper/tank_r2_crypt",
+      "pv_start": 0,
+      "pv_size": 262144,
+      "lv_index": "1",
+      "lv_name": "backups",
+      "lv_start": 0,
+      "lv_size": 262144
+    },
+    {
+      "segtype": "free",
+      "pv_name": "/dev/mapper/tank_r2_crypt",
+      "pv_start": 262144,
+      "pv_size": 253404
+    },
+    {
+      "segtype": "linear",
+      "pv_name": "/dev/mapper/tank_r2_crypt",
+      "pv_start": 515548,
+      "pv_size": 167250,
+      "lv_index": "13",
+      "lv_name": "archive",
+      "lv_start": 3502766,
+      "lv_size": 167250
+    },
+    {
+      "segtype": "free",
+      "pv_name": "/dev/mapper/tank_r2_crypt",
+      "pv_start": 682798,
+      "pv_size": 97490
+    },
+    {
+      "segtype": "linear",
+      "pv_name": "/dev/mapper/tank_r2_crypt",
+      "pv_start": 780288,
+      "pv_size": 173537,
+      "lv_index": "12",
+      "lv_name": "archive",
+      "lv_start": 3329229,
+      "lv_size": 173537
+    }
+  ],
+  "pv_options": {
+    "/dev/mapper/qlc_crypt": {
+      "indirectAllowed": true,
+      "localAllowed": false,
+      "splitAllowed": false,
+      "maxIndirectSize": 0
+    },
+    "/dev/mapper/ssd_crypt": {
+      "indirectAllowed": true,
+      "localAllowed": false,
+      "splitAllowed": false,
+      "maxIndirectSize": 0
+    },
+    "/dev/mapper/tank_r1_crypt": {
+      "indirectAllowed": true,
+      "localAllowed": false,
+      "splitAllowed": false,
+      "maxIndirectSize": 0
+    },
+    "/dev/mapper/tank_r2_crypt": {
+      "indirectAllowed": true,
+      "localAllowed": false,
+      "splitAllowed": false,
+      "maxIndirectSize": 0
+    }
+  }
+}

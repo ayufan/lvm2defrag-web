@@ -1,0 +1,40 @@
+{
+  "segments": [
+    {
+      "segtype": "linear",
+      "pv_name": "/dev/sda",
+      "pv_start": 0,
+      "pv_size": 100,
+      "lv_name": "archive",
+      "lv_start": 0,
+      "lv_size": 100,
+      "lv_index": 1,
+      "target_pv_name": "/dev/sda",
+      "target_pv_start": 100
+    },
+    {
+      "segtype": "free",
+      "pv_name": "/dev/sda",
+      "pv_start": 100,
+      "pv_size": 50
+    },
+    {
+      "segtype": "linear",
+      "pv_name": "/dev/sda",
+      "pv_start": 150,
+      "pv_size": 50,
+      "lv_name": "archive",
+      "lv_start": 100,
+      "lv_size": 50,
+      "lv_index": 2
+    }
+  ],
+  "pv_options": {
+    "/dev/sda": {
+      "indirectAllowed": true,
+      "localAllowed": true,
+      "splitAllowed": true,
+      "maxIndirectSize": 0
+    }
+  }
+}

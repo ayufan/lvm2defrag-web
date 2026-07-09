@@ -21,6 +21,7 @@ function createOrUpdatePV(pvName) {
     div.innerHTML = `
       <h3>${pvName}</h3>
       <label><input type="checkbox" class="use-indirect" data-pv="${pvName}" checked /> Use for indirect moves</label><br/>
+      <label style="margin-left: 20px;">Max indirect size: <input type="number" class="max-indirect-size" data-pv="${pvName}" min="1" placeholder="no limit" style="width: 80px;" /></label><br/>
       <label><input type="checkbox" class="use-local" data-pv="${pvName}" /> Allow for local moves</label><br/>
       <label><input type="checkbox" class="use-split" data-pv="${pvName}" /> Allow to split extents</label><br/>
       <button onclick="sortPVExtents('${pvName}')" style="font-size: 12px; padding: 2px 6px;">Sort Extents</button>
@@ -35,7 +36,17 @@ function createOrUpdatePV(pvName) {
     div.appendChild(list);
     container.appendChild(div);
 
-    new Sortable(list, {
+    // Add event listeners to checkboxes for persistence
+    div.querySelector('.use-indirect').addEventListener('change', () => {
+      const indirectCheckbox = div.querySelector('.use-indirect');
+      div.querySelector('.max-indirect-size').disabled = !indirectCheckbox.checked;
+      saveSettings();
+    });
+    div.querySelector('.use-local').addEventListener('change', saveSettings);
+    div.querySelector('.use-split').addEventListener('change', saveSettings);
+    div.querySelector('.max-indirect-size').addEventListener('change', saveSettings);
+
+    list.sortable = new Sortable(list, {
       group: 'extents',
       animation: 150,
       onEnd: evt => {
@@ -46,7 +57,7 @@ function createOrUpdatePV(pvName) {
         let freeSpace = 0;
         for (let el = nextEl; el; el = el.nextElementSibling) {
           if (el.dataset.lv_name)
-            continue;
+            break;
           freeSpace += parseInt(el.dataset.pv_size);
         }
 
@@ -66,7 +77,7 @@ function createOrUpdatePV(pvName) {
         let left_size = pv_size;
         for (let el = nextEl; el && left_size > 0; el = el.nextElementSibling) {
           if (el.dataset.lv_name)
-            continue;
+            break;
           const size = parseInt(el.dataset.pv_size);
           if (left_size > size) {
             el.dataset.pv_size = 0;
@@ -78,8 +89,8 @@ function createOrUpdatePV(pvName) {
         }
 
         createLVFreeExtent(
-          item.dataset.moved_pv_name,
-          parseInt(item.dataset.moved_pv_start),
+          item.dataset.target_pv_name,
+          parseInt(item.dataset.target_pv_start),
           pv_size - left_size);
         updatePVs();
         saveUserJSON();
@@ -99,8 +110,8 @@ function updatePVs() {
       let ext = elem.children[i];
       let pv_size = parseInt(ext.dataset.pv_size);
 
-      ext.dataset.moved_pv_start = pv_start;
-      ext.dataset.moved_pv_name = pv_name;
+      ext.dataset.target_pv_start = pv_start;
+      ext.dataset.target_pv_name = pv_name;
 
       if (ext.dataset.lv_name) {
         if (ext.dataset.pv_name !== pv_name || parseInt(ext.dataset.pv_start) !== pv_start) {
@@ -131,9 +142,9 @@ function updatePVs() {
 
 function insertLVtoPV(pvName, item) {
   const list = createOrUpdatePV(pvName);
-  const moved_pv_start = parseInt(item.dataset.moved_pv_start);
+  const target_pv_start = parseInt(item.dataset.target_pv_start);
   for(const d of list.children) {
-    if (parseInt(d.dataset.moved_pv_start) > moved_pv_start) {
+    if (parseInt(d.dataset.target_pv_start) > target_pv_start) {
       list.insertBefore(item, d);
       return;
     }
@@ -150,12 +161,17 @@ function createLVFreeExtent(pvName, pv_start, pv_size) {
   d.dataset.pv_start = pv_start;
   d.dataset.pv_size = pv_size;
   d.dataset.pv_name = pvName;
-  d.dataset.moved_pv_name = pvName;
-  d.dataset.moved_pv_start = pv_start;
+  d.dataset.target_pv_name = pvName;
+  d.dataset.target_pv_start = pv_start;
   insertLVtoPV(pvName, d);
 }
 
-function createLVExtent(pvName, segment, movedPvName = null, movedPvStart = null) {
+// `targetPvName`/`targetPvStart` control where this extent is inserted into the DOM
+// (its visual slot) - independent of segment.target_pv_name/target_pv_start, which is
+// the lib's planned-destination concept. Callers restoring a saved drag arrangement
+// pass the saved slot; callers rendering a real position (fresh parse, move-by-move
+// snapshots) omit them so the extent lands at its own current pv_name/pv_start.
+function createLVExtent(pvName, segment, targetPvName = null, targetPvStart = null) {
   const lv_name = segment.lv_name;
   const start_pe = parseInt(segment.lv_start);
   const lv_size = parseInt(segment.lv_size);
@@ -163,8 +179,8 @@ function createLVExtent(pvName, segment, movedPvName = null, movedPvStart = null
   const pv_size = parseInt(segment.pv_size);
   const lv_index = parseInt(segment.lv_index);
 
-  movedPvName = movedPvName || pvName;
-  movedPvStart = movedPvStart !== null ? movedPvStart : pv_start;
+  targetPvName = targetPvName || pvName;
+  targetPvStart = targetPvStart !== null ? targetPvStart : pv_start;
 
   const d = document.createElement('div');
   d.className = 'extent';
@@ -179,10 +195,10 @@ function createLVExtent(pvName, segment, movedPvName = null, movedPvStart = null
   d.dataset.pv_name = segment.pv_name;
   d.dataset.pv_start = pv_start;
   d.dataset.pv_size = pv_size;
-  d.dataset.moved_pv_name = movedPvName;
-  d.dataset.moved_pv_start = movedPvStart;
+  d.dataset.target_pv_name = targetPvName;
+  d.dataset.target_pv_start = targetPvStart;
   d.dataset.lv_index = lv_index;
-  insertLVtoPV(movedPvName, d);
+  insertLVtoPV(targetPvName, d);
 }
 
 function dumpPVs() {
@@ -197,7 +213,11 @@ function dumpPVs() {
         pv_size: parseInt(el.dataset.pv_size)
       };
 
-      // Add additional data for LV extents to enable proper restoration
+      // Add additional data for LV extents to enable proper restoration. target_pv_name/
+      // target_pv_start (the extent's current DOM slot) are only included when it's
+      // actually `.moved` - a pristine dump (nothing dragged) must carry no target
+      // fields at all, since it doubles as Segment.scheduleMove's untouched baseline
+      // and scheduleMove rejects segments that already have a target set.
       if (el.dataset.lv_name) {
         segment.lv_index = el.dataset.lv_index;
         segment.lv_name = el.dataset.lv_name;
@@ -205,9 +225,8 @@ function dumpPVs() {
         segment.lv_size = parseInt(el.dataset.lv_size);
 
         if (el.classList.contains('moved')) {
-          segment.moved = true;
-          segment.moved_pv_name = el.dataset.moved_pv_name;
-          segment.moved_pv_start = parseInt(el.dataset.moved_pv_start);
+          segment.target_pv_name = el.dataset.target_pv_name;
+          segment.target_pv_start = parseInt(el.dataset.target_pv_start);
         }
       }
 
@@ -250,14 +269,25 @@ function sortPVExtents(pvName) {
   saveUserJSON();
 }
 
-function setPVs(segments) {
+// `restoreTarget` re-inserts LV extents at their saved DOM slot (segment.target_pv_name/
+// target_pv_start) - only correct for restoring a previously dumped drag arrangement
+// (dumpPVs() output round-tripped through localStorage). Real segment lists (fresh
+// parses, move-by-move simulation snapshots) also carry target_pv_name/target_pv_start
+// - the lib's planned-destination, not a DOM slot - so those must render at the
+// segment's own current pv_name/pv_start instead, which is the default.
+function setPVs(segments, restoreTarget = false) {
   resetPVs();
   for (const segment of segments) {
     if (segment.segtype !== 'free') {
-      createLVExtent(segment.pv_name, segment, segment.moved_pv_name, segment.moved_pv_start);
+      if (restoreTarget) {
+        createLVExtent(segment.pv_name, segment, segment.target_pv_name, segment.target_pv_start);
+      } else {
+        createLVExtent(segment.pv_name, segment);
+      }
     } else {
       createLVFreeExtent(segment.pv_name, segment.pv_start, segment.pv_size);
     }
   }
   updatePVs();
+  restoreSettings();
 }

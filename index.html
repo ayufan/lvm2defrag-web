@@ -4,10 +4,11 @@
   <meta charset="UTF-8" />
   <title>LVM Extent Manager</title>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-  <script src="extents.js"></script>
-  <script src="planner.js"></script>
   <script src="utils.js"></script>
   <script src="pvs.js"></script>
+  <script src="lib/segment.js"></script>
+  <script src="lib/move.js"></script>
+  <script src="lib/planner.js"></script>
   <script src="ui.js"></script>
   <style>
     body { font-family: sans-serif; padding: 20px; }
@@ -20,7 +21,8 @@
     .extent { padding: 4px; margin: 2px 0; background: #e0e0ff; cursor: grab; font-size: 12px; border-left: 6px solid; position: relative; }
     .extent.free { background: #d0ffd0; border-left-color: #8c8; }
     .extent:hover { opacity: 0.9; }
-    .extent.moved::after {
+    .extent.moved::after,
+    .extent.final::after {
       content: 'moved';
       position: absolute;
       right: 4px;
@@ -30,6 +32,9 @@
       background: #fff6b2;
       padding: 0 4px;
       border-radius: 3px;
+    }
+    .extent.final::after {
+      content: 'final';
     }
     pre { background: #eee; padding: 10px; white-space: pre-wrap; }
     .error { color: red; font-weight: bold; }
@@ -80,36 +85,41 @@
   <strong>Step 2:</strong> Re-order extents:<br>
 </div>
 
-<div class="help" id="moveVisualizationSection" style="display: none;">
-  <strong>Move Visualization:</strong><br>
-  <div style="margin: 10px 0;">
-    <label for="moveSlider">Move: <span id="moveLabel">0 / 0</span></label><br>
-    <input type="range" id="moveSlider" min="0" max="0" value="0" style="width: 100%; margin: 5px 0;" />
-    <div id="moveDescription" style="font-size: 12px; color: #666; margin-top: 5px;"></div>
-  </div>
-</div>
-
 <div class="pv-container" id="pvContainer"></div>
 
 <div class="help">
-  <strong>Step 3:</strong> Copy commands:<br>
-  <button onclick="generateCommands()">Generate</button>
+  <strong>Step 3:</strong> Generate &amp; Visualise &amp; Copy Commands:<br>
+  <button onclick="generateCommands()" id="generateButton">Generate</button>
   <button onclick="copyGeneratedCommands()">Copy</button>
+
+  <div id="moveVisualizationSection" style="display: none; margin-top: 10px;">
+    <strong>Move Visualization</strong> <span style="font-size: 12px; color: #666;">(read-only preview)</span>:<br>
+    <label for="moveSlider">Move: <span id="moveLabel">Off</span></label><br>
+    <input type="range" id="moveSlider" min="0" max="0" value="0" style="width: 100%; margin: 5px 0;" />
+    <div id="moveDescription" style="font-size: 12px; color: #666; margin-top: 5px;"></div>
+    <div class="pv-container" id="visualizationContainer" style="display: none;"></div>
+  </div>
 </div>
 
+<div class="help">
+  <strong>Step 4:</strong> Commands:<br>
+</div>
 <pre id="commandsOutput"># No changes yet</pre>
 
 <div class="help">
-  <strong>Step 4:</strong> Inspect logs:<br>
+  <strong>Step 5:</strong> Debug:<br>
+  <button onclick="showDebugState()">Debug State</button>
+  <button onclick="copyDebugState()">Copy State</button>
 </div>
-<pre id="debugJson"></pre>
+<pre id="debugStateOutput"></pre>
 
 <!-- Modal for splitting -->
 <div id="modalOverlay" class="modal-overlay" style="display:none;"></div>
 <div id="splitModal" class="modal" style="display:none;">
   <h4>Split Extent</h4>
   <p id="splitLabel">Size: </p>
-  <input type="range" id="splitSlider" min="1" max="1" value="1" />
+  <input type="range" id="splitSlider" min="1" max="1" value="1" oninput="syncSplitInputs('slider')" />
+  <input type="number" id="splitNumber" min="1" max="1" value="1" style="width: 80px;" oninput="syncSplitInputs('number')" />
   <button onclick="confirmSplit()">Split</button>
   <button onclick="closeSplitModal()">Cancel</button>
 </div>
@@ -124,19 +134,22 @@
 </footer>
 
 <script>
-function parseJSON() {
+function parseJSON(onLoad = false) {
   try {
     const jsonInput = document.getElementById('jsonInput').value.trim();
+
+    if (!onLoad) {
+      localStorage.removeItem('lvm_user_json');
+      localStorage.removeItem('lvm_settings');
+    }
+
     const segments = parsePVSReport(jsonInput);
     setPVs(segments);
     loadedReport = dumpPVs();
 
-    if (localStorage.getItem('lvm_json') !== jsonInput) {
-      localStorage.removeItem('lvm_user_json');
-    }
-
     localStorage.setItem('lvm_json', jsonInput);
     document.getElementById('restoreButton').disabled = localStorage.getItem('lvm_user_json') ? false : true;
+    setupMoveVisualization([]);
   } catch (e) {
     document.getElementById('errorMessage').innerText = `Invalid JSON: ${e.message}`;
   }
@@ -150,7 +163,8 @@ function parseUserJSON() {
     }
 
     const segments = JSON.parse(jsonInput);
-    setPVs(segments);
+    setPVs(segments, true);
+    setupMoveVisualization([]);
   } catch (e) {
     document.getElementById('errorMessage').innerText = `Invalid JSON: ${e.message}`;
   }
@@ -159,49 +173,104 @@ function parseUserJSON() {
 function saveUserJSON() {
   const currentOrder = dumpPVs();
   localStorage.setItem('lvm_user_json', JSON.stringify(currentOrder));
+  document.getElementById('restoreButton').disabled = false;
+}
+
+function saveSettings() {
+  const settings = {};
+  for (const elem of enumPVElems()) {
+    const pv_name = elem.dataset.pv_name;
+    settings[pv_name] = {
+      indirectAllowed: document.querySelector(`.use-indirect[data-pv="${pv_name}"]`)?.checked || false,
+      localAllowed: document.querySelector(`.use-local[data-pv="${pv_name}"]`)?.checked || false,
+      splitAllowed: document.querySelector(`.use-split[data-pv="${pv_name}"]`)?.checked || false,
+      maxIndirectSize: document.querySelector(`.max-indirect-size[data-pv="${pv_name}"]`)?.value || ''
+    };
+  }
+  localStorage.setItem('lvm_settings', JSON.stringify(settings));
+}
+
+function restoreSettings() {
+  const savedSettings = localStorage.getItem('lvm_settings');
+  if (!savedSettings) return;
+
+  try {
+    const settings = JSON.parse(savedSettings);
+    for (const [pv_name, pvSettings] of Object.entries(settings)) {
+      const indirectCheckbox = document.querySelector(`.use-indirect[data-pv="${pv_name}"]`);
+      const localCheckbox = document.querySelector(`.use-local[data-pv="${pv_name}"]`);
+      const splitCheckbox = document.querySelector(`.use-split[data-pv="${pv_name}"]`);
+      const maxIndirectSizeInput = document.querySelector(`.max-indirect-size[data-pv="${pv_name}"]`);
+
+      if (indirectCheckbox) indirectCheckbox.checked = pvSettings.indirectAllowed;
+      if (localCheckbox) localCheckbox.checked = pvSettings.localAllowed;
+      if (splitCheckbox) splitCheckbox.checked = pvSettings.splitAllowed;
+      if (maxIndirectSizeInput) {
+        maxIndirectSizeInput.value = pvSettings.maxIndirectSize || '';
+        maxIndirectSizeInput.disabled = !pvSettings.indirectAllowed;
+      }
+    }
+  } catch (e) {
+    console.error('Failed to restore settings:', e);
+  }
 }
 
 let globalMoves = [];
 
-function generateCommands() {
-  const queue = [];
-  const freeSets = new ExtentSetsWithNames();
+function buildPvOptions() {
+  const pvOptions = {};
 
-  // load settings
   for (const elem of enumPVElems()) {
     const pv_name = elem.dataset.pv_name;
-    freeSets.set(pv_name).indirectAllowed = document.querySelector(`.use-indirect[data-pv="${pv_name}"]`)?.checked;
-    freeSets.set(pv_name).localAllowed = document.querySelector(`.use-local[data-pv="${pv_name}"]`)?.checked;
-    freeSets.set(pv_name).splitAllowed = document.querySelector(`.use-split[data-pv="${pv_name}"]`)?.checked;
+    const indirectAllowed = document.querySelector(`.use-indirect[data-pv="${pv_name}"]`)?.checked;
+    pvOptions[pv_name] = {
+      indirectAllowed,
+      localAllowed: document.querySelector(`.use-local[data-pv="${pv_name}"]`)?.checked,
+      splitAllowed: document.querySelector(`.use-split[data-pv="${pv_name}"]`)?.checked,
+      maxIndirectSize: indirectAllowed ? (parseInt(document.querySelector(`.max-indirect-size[data-pv="${pv_name}"]`)?.value) || 0) : 0,
+    };
   }
 
-  // load free space
-  for (const loaded of loadedReport) {
-    if (loaded.lv_name) continue; // Skip LV extents
-    freeSets.add(loaded.pv_name, loaded.pv_start, loaded.pv_size);
+  return pvOptions;
+}
+
+function buildSourceReport() {
+  return loadedReport;
+}
+
+const MAX_PLAN_ITERATIONS = 20000;
+
+// Bridges the DOM's drag arrangement onto the real segment positions: domReport's
+// pv_name/pv_start for LV extents is frozen to their real position (see ui.js), while
+// target_pv_name/target_pv_start is wherever the user dragged them - exactly what
+// Segment.scheduleMove needs to attach onto the matching real segment(s).
+function buildPlanSegments(sourceReport, domReport) {
+  const segments = Segment.clone(sourceReport);
+
+  for (const seg of domReport) {
+    if (!new Segment(seg).shouldBeMoved()) continue;
+    Segment.scheduleMove(segments, seg.pv_name, seg.pv_start, seg.pv_size, seg.target_pv_name, seg.target_pv_start);
   }
 
-  // load segments to move
-  for (const segment of dumpPVs()) {
-    if (!segment.moved) continue;
+  return segments;
+}
 
-    queue.push({
-      from_start: segment.pv_start,
-      from_set: segment.pv_name,
-      to_start: segment.moved_pv_start,
-      to_set: segment.moved_pv_name,
-      size: segment.pv_size,
-      lv_name: segment.lv_name,
-      lv_start: segment.lv_start,
-      lv_index: segment.lv_index,
-      name: `${segment.lv_name} #${segment.lv_index}[${segment.lv_start}-${segment.lv_start + segment.lv_size - 1}]`
-    })
-  }
+function generateCommands() {
+  const pvOptions = buildPvOptions();
+  const sourceReport = buildSourceReport();
+  const domReport = dumpPVs();
 
-  let { moves, failedMoves } = planMoves(queue, freeSets);
+  const segments = buildPlanSegments(sourceReport, domReport);
+  const { finalMoves, finalIterations, finalReport, finalQueue } = planAllMoves(segments, pvOptions, MAX_PLAN_ITERATIONS);
 
-  if (failedMoves.length > 0) {
-    document.getElementById('errorMessage').innerText = `❌ Failed to find enough free space for ${failedMoves.length} extents`;
+  const moves = finalMoves;
+  const report = finalReport;
+  const queue = finalQueue;
+
+  if (finalIterations >= MAX_PLAN_ITERATIONS && queue.length > 0) {
+    document.getElementById('errorMessage').innerText = `❌ Stopped after ${MAX_PLAN_ITERATIONS} iterations without finishing`;
+  } else if (queue.length > 0) {
+    document.getElementById('errorMessage').innerText = `❌ Failed to find enough free space for ${queue.length} extents`;
   } else {
     document.getElementById('errorMessage').innerText = '';
   }
@@ -209,19 +278,27 @@ function generateCommands() {
   const commands = [];
   let extentsMoved = { total: 0, indirect: 0, full: 0, partial: 0, cost: 1, indirect_cost: 0 };
 
-  let currentOrder = [...loadedReport];
+  // Starts from `segments`, not `sourceReport`: segments carries the scheduled
+  // target_pv_name/target_pv_start (sourceReport never does), so performMove can keep
+  // pending/complete correct across the whole replay - otherwise every captured
+  // snapshot would show no target at all and the move visualization's .final badge
+  // could never appear.
+  let currentOrder = segments;
 
   for (let i = 0; i < moves.length; i++) {
     const move = moves[i];
 
-    if (false) {
-      move.captured = moveSegment([...currentOrder], move);
-      if (!move.captured) {
-        document.getElementById('errorMessage').innerText = `❌ Internal error: failed to simulate move for ${move.name}`;
-        return;
-      }
-      currentOrder = move.captured;
+    try {
+      move.captured = performMove(currentOrder, {
+        source_pv_name: move.from_set, source_pv_start: move.from_start,
+        target_pv_name: move.to_set, target_pv_start: move.to_start,
+        size: move.size,
+      }, move.type);
+    } catch (e) {
+      document.getElementById('errorMessage').innerText = `❌ Internal error: failed to simulate move for ${move.name}: ${e.message}`;
+      return;
     }
+    currentOrder = move.captured;
 
     const cost = move.size * (move.from_set == move.to_set ? 3 : 1);
     extentsMoved.total += move.size;
@@ -237,7 +314,7 @@ function generateCommands() {
   }
 
   // Setup move visualization
-  setupMoveVisualization(moves); // (moves);
+  setupMoveVisualization(moves);
 
   let extentsCount = 0;
 
@@ -253,10 +330,9 @@ function generateCommands() {
     extentsCount += move.size;
   }
 
-  for (let i = 0; i < failedMoves.length; i++) {
-    const move = failedMoves[i];
+  for (const entry of queue) {
     commands.push(
-      `# Failed to move ${move.name} from ${move.from_set}[${move.from_start}-${move.from_start + move.size - 1}] to ${move.to_set}[${move.to_start}-${move.to_start + move.size - 1}]`,
+      `# Failed to move ${entry.lv_name}[${entry.lv_start}-${entry.lv_start + entry.lv_size - 1}] from ${entry.pv_name}[${entry.pv_start}-${entry.pv_start + entry.pv_size - 1}] to ${entry.target_pv_name}[${entry.target_pv_start}-${entry.target_pv_start + entry.pv_size - 1}]`,
       `# Not enough free space available`,
       ``
     );
@@ -268,25 +344,96 @@ function generateCommands() {
     `# Partial extents moved: ${extentsMoved.partial}`,
     `# Indirect extents moved: ${extentsMoved.indirect}`,
     `# Total moves planned: ${moves.length}`,
-    `# Failed moves: ${failedMoves.length}`,
+    `# Failed moves: ${queue.length}`,
     `# Estimated cost (lower is better): ${((extentsMoved.cost - extentsMoved.indirect_cost) / extentsMoved.cost).toFixed(2)}`,
     ``
   );
 
   document.getElementById('commandsOutput').innerText = commands.length ? commands.join('\n') : "# No changes.";
-  document.getElementById('debugJson').innerText = 
-    `const queue = ${JSON.stringify(queue, null, 2)};\n\n` +
-    `const free = ${JSON.stringify(freeSets, null, 2)};`;
 }
 
 function copyGeneratedCommands() {
   navigator.clipboard.writeText(document.getElementById('commandsOutput').innerText);
 }
 
+function buildDebugState() {
+  const pvOptions = buildPvOptions();
+  const sourceReport = buildSourceReport();
+  const domReport = dumpPVs();
+  const isRelevant = seg => {
+    const segment = new Segment(seg);
+    return segment.isFree() || segment.shouldBeMoved();
+  };
+
+  const target = buildTargetReport(domReport.filter(isRelevant));
+  const source = buildPlanSegments(sourceReport, domReport).filter(isRelevant);
+
+  return {
+    source,
+    target,
+    pv_options: pvOptions,
+  };
+}
+
+function showDebugState() {
+  document.getElementById('debugStateOutput').innerText = JSON.stringify(buildDebugState(), null, 2);
+}
+
+function copyDebugState() {
+  navigator.clipboard.writeText(JSON.stringify(buildDebugState(), null, 2));
+}
+
+// A minimal, read-only renderer for the move visualization - deliberately not
+// createOrUpdatePV/setPVs, which bake in per-PV option checkboxes, the "Sort Extents"
+// button, and Sortable drag handling. Reusing those here would duplicate data-pv
+// checkboxes (confusing buildPvOptions()) and make a *snapshot* draggable.
+function renderVisualization(segments) {
+  const container = document.getElementById('visualizationContainer');
+  container.innerHTML = '';
+
+  const byPv = {};
+  for (const segment of segments) {
+    (byPv[segment.pv_name] = byPv[segment.pv_name] || []).push(segment);
+  }
+
+  for (const pvName of Object.keys(byPv).sort()) {
+    const div = document.createElement('div');
+    div.className = 'pv';
+    div.innerHTML = `<h3>${pvName}</h3><hr/>`;
+
+    const list = document.createElement('div');
+    list.className = 'pv-lvs';
+
+    for (const segment of byPv[pvName].sort((a, b) => a.pv_start - b.pv_start)) {
+      const d = document.createElement('div');
+
+      if (!segment.lv_name) {
+        d.className = 'extent free';
+        d.innerText = `free:${segment.pv_size}`;
+      } else {
+        d.className = 'extent';
+        d.innerText = `${segment.lv_name} #${segment.lv_index}:${segment.pv_size}`;
+        d.style.borderLeftColor = hashColor(segment.lv_name);
+        d.style.background = hashColor(segment.lv_name);
+        if (segment.complete) {
+          d.classList.add('final');
+        } else if (segment.move_type !== undefined) {
+          d.classList.add('moved');
+        }
+      }
+
+      list.appendChild(d);
+    }
+
+    div.appendChild(list);
+    container.appendChild(div);
+  }
+}
+
+// Slider positions: 0 = Off (nothing shown), 1 = original state, 2..N+1 = after move
+// (position - 1).
 function setupMoveVisualization(moves) {
   const moveSlider = document.getElementById('moveSlider');
-  const moveLabel = document.getElementById('moveLabel');
-  const moveDescription = document.getElementById('moveDescription');
   const section = document.getElementById('moveVisualizationSection');
 
   globalMoves = moves;
@@ -297,8 +444,7 @@ function setupMoveVisualization(moves) {
   }
 
   section.style.display = 'block';
-  moveSlider.max = globalMoves.length;
-  moveSlider.value = 0;
+  moveSlider.max = globalMoves.length + 1;
 
   updateMoveVisualization(0);
 
@@ -308,22 +454,38 @@ function setupMoveVisualization(moves) {
 }
 
 function updateMoveVisualization(moveIndex) {
+  const moveSlider = document.getElementById('moveSlider');
   const moveLabel = document.getElementById('moveLabel');
   const moveDescription = document.getElementById('moveDescription');
-
-  moveLabel.innerText = `${moveIndex} / ${globalMoves.length}`;
+  const visualizationContainer = document.getElementById('visualizationContainer');
+  moveSlider.value = moveIndex;
 
   if (moveIndex === 0) {
-    // Show original state (as currently displayed in UI)
+    moveLabel.innerText = 'Off';
+    moveDescription.innerText = '';
+    visualizationContainer.style.display = 'none';
+    visualizationContainer.innerHTML = '';
+    return;
+  }
+
+  visualizationContainer.style.display = '';
+  moveLabel.innerText = `${moveIndex} / ${globalMoves.length + 1}`;
+
+  if (moveIndex === 1) {
     moveDescription.innerText = 'Original state (no moves applied)';
-    setPVs(loadedReport);
+    renderVisualization(loadedReport);
+  } else if (moveIndex === globalMoves.length + 1) {
+    const lastMove = globalMoves[globalMoves.length - 1];
+    moveDescription.innerText = `Final state after all ${globalMoves.length} moves applied`;
+    if (lastMove.captured) {
+      renderVisualization(lastMove.captured);
+    }
   } else {
-    // Show state after applying move (moveIndex - 1)
-    const move = globalMoves[moveIndex - 1];
-    moveDescription.innerText = `After move ${moveIndex}: ${move.name} (${move.type})`;
+    const move = globalMoves[moveIndex - 2];
+    moveDescription.innerText = `After move ${moveIndex - 1}: ${move.name} (${move.type})`;
 
     if (move.captured) {
-      setPVs(move.captured);
+      renderVisualization(move.captured);
     }
   }
 }
@@ -338,11 +500,29 @@ document.addEventListener("click", function (e) {
     if (max <= 1) return;
     document.getElementById("splitSlider").max = max - 1;
     document.getElementById("splitSlider").value = 1;
+    document.getElementById("splitNumber").max = max - 1;
+    document.getElementById("splitNumber").value = 1;
     document.getElementById("splitLabel").innerText = `Split ${selectedExtent.innerText} into:`;
     document.getElementById("splitModal").style.display = "block";
     document.getElementById("modalOverlay").style.display = "block";
   }
 });
+
+// Keeps the slider and the numeric input in lockstep, clamping the edited one to
+// [1, max] and mirroring the result onto the other.
+function syncSplitInputs(source) {
+  const slider = document.getElementById("splitSlider");
+  const number = document.getElementById("splitNumber");
+  const max = parseInt(slider.max);
+
+  const edited = source === "slider" ? slider : number;
+  let value = parseInt(edited.value);
+  if (isNaN(value)) value = 1;
+  value = Math.min(Math.max(value, 1), max);
+
+  slider.value = value;
+  number.value = value;
+}
 
 function closeSplitModal() {
   document.getElementById("splitModal").style.display = "none";
@@ -359,13 +539,12 @@ function confirmSplit() {
 
   const clone = selectedExtent.cloneNode(true);
   selectedExtent.dataset.pv_size = splitSize;
-  selectedExtent.dataset.index += "-1";
   selectedExtent.innerText = `${selectedExtent.dataset.lv_name} #${selectedExtent.dataset.lv_index}:${splitSize}`;
 
-  clone.dataset.index += "-2";
   clone.dataset.pv_size = secondSize;
-  clone.dataset.moved_pv_start = parseInt(selectedExtent.dataset.moved_pv_start) + splitSize;
+  clone.dataset.target_pv_start = parseInt(selectedExtent.dataset.target_pv_start) + splitSize;
   clone.dataset.pv_start = parseInt(selectedExtent.dataset.pv_start) + splitSize;
+  clone.dataset.lv_start = parseInt(selectedExtent.dataset.lv_start) + splitSize;
   clone.innerText = `${clone.dataset.lv_name} #${clone.dataset.lv_index}:${secondSize}`;
 
   selectedExtent.parentElement.insertBefore(clone, selectedExtent.nextSibling);
@@ -379,8 +558,9 @@ window.onload = () => {
   const saved = localStorage.getItem('lvm_json');
   if (saved) {
     document.getElementById('jsonInput').value = saved;
-    parseJSON();
+    parseJSON(true);
     parseUserJSON();
+    restoreSettings();
   }
 };
 </script>

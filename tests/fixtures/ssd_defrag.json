@@ -1,0 +1,90 @@
+{
+  "source": [
+    {
+      "segtype": "free",
+      "pv_name": "/dev/mapper/qlc_crypt",
+      "pv_start": 677888,
+      "pv_size": 108507
+    },
+    {
+      "segtype": "free",
+      "pv_name": "/dev/mapper/ssd_crypt",
+      "pv_start": 474112,
+      "pv_size": 2495
+    },
+    {
+      "segtype": "linear",
+      "pv_name": "/dev/mapper/ssd_crypt",
+      "pv_start": 192512,
+      "pv_size": 25600,
+      "lv_index": "2",
+      "lv_name": "servers",
+      "lv_start": 51200,
+      "lv_size": 25600,
+      "target_pv_name": "/dev/mapper/ssd_crypt",
+      "target_pv_start": 64512,
+      "pending": true
+    },
+    {
+      "segtype": "linear",
+      "pv_name": "/dev/mapper/ssd_crypt",
+      "pv_start": 64512,
+      "pv_size": 128000,
+      "lv_index": "1",
+      "lv_name": "media",
+      "lv_start": 0,
+      "lv_size": 128000,
+      "target_pv_name": "/dev/mapper/ssd_crypt",
+      "target_pv_start": 90112,
+      "pending": true
+    }
+  ],
+  "target": [
+    {
+      "segtype": "free",
+      "pv_name": "/dev/mapper/qlc_crypt",
+      "pv_start": 677888,
+      "pv_size": 108507
+    },
+    {
+      "segtype": "linear",
+      "pv_name": "/dev/mapper/ssd_crypt",
+      "pv_start": 64512,
+      "pv_size": 25600,
+      "lv_index": "2",
+      "lv_name": "servers",
+      "lv_start": 51200,
+      "lv_size": 25600
+    },
+    {
+      "segtype": "linear",
+      "pv_name": "/dev/mapper/ssd_crypt",
+      "pv_start": 90112,
+      "pv_size": 128000,
+      "lv_index": "1",
+      "lv_name": "media",
+      "lv_start": 0,
+      "lv_size": 128000
+    },
+    {
+      "segtype": "free",
+      "pv_name": "/dev/mapper/ssd_crypt",
+      "pv_start": 474112,
+      "pv_size": 2495
+    }
+  ],
+  "pv_options": {
+    "/dev/mapper/qlc_crypt": {
+      "indirectAllowed": true,
+      "localAllowed": true,
+      "splitAllowed": true,
+      "maxIndirectSize": 0
+    },
+    "/dev/mapper/ssd_crypt": {
+      "indirectAllowed": true,
+      "localAllowed": true,
+      "splitAllowed": true,
+      "maxIndirectSize": 0
+    }
+  }
+}
